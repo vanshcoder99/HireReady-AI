@@ -1,6 +1,9 @@
 # Node modules
 node_modules/
 
+#personal work of author vansh nagpal
+todo.txt
+
 # Environment variables (VERY IMPORTANT)
 .env
 .env.*
