@@ -1,0 +1,25 @@
+# Node modules
+node_modules/
+
+#personal work of author vansh nagpal
+todo.txt
+
+# Environment variables (VERY IMPORTANT)
+.env
+.env.*
+
+# Logs
+logs/
+*.log
+
+# Build folders
+dist/
+build/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
