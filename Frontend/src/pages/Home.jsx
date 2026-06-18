@@ -19,6 +19,7 @@ import creditImg from "../assets/credit.png"
 import resumeImg from "../assets/resume.png"
 import pdfImg from "../assets/pdf.png"
 import analyticsImg from "../assets/history.png"
+import Footer from '../components/Footer.jsx';
 function Home() {
   const {userData} = useSelector((state) => state.user)
   const [showAuth,setShowAuth] = useState(false)
@@ -206,9 +207,74 @@ function Home() {
             </div>
 
           </div>
+
+          <div className='mb-32'>
+            <motion.h2
+              className='text-4xl font-semibold text-center mb-16'
+              initial={{opacity:0 , y: 20}}
+              whileInView={{opacity:1, y: 0}}
+              transition={{duration: 0.6 }}
+            >
+              Multiple Interview{" "}
+              <span className='text-green-600'>Modes</span>
+            </motion.h2>
+
+            <div className='grid md:grid-cols-2 gap-10'>
+              {
+                [
+                  {
+                    image: hrImg,
+                    title: "HR Interview Mode",
+                    desc: "Behavioral and communication based evaluation."
+                  },
+                  {
+                    image: techImg,
+                    title: "Technical Mode",
+                    desc: "Deep technical questioning based on selected role."
+                  },
+                  {
+                    image: confidenceImg,
+                    title: "Confidence Detection",
+                    desc: "Basic tone and voice analysis insights."
+                  },
+                  {
+                    image: creditImg,
+                    title: "Credits System",
+                    desc: "Unlock premium interview sessions easily."
+                  }
+                ].map((mode,index) => (
+                  <motion.div 
+                    key={index}
+                    initial={{opacity:0,y:30}}
+                    whileInView={{opacity:1,y:0}}
+                    transition={{duration:0.5 , delay: index * 0.1}}
+                    whileHover={{y:-6}}
+                    className='bg-white border border-gray-200 hover:border-green-500 rounded-3xl p-8 shadow-sm hover:shadow-xl transition-all'
+                  >
+                    <div className='flex items-center  justify-between gap-6'>
+                      <div className='w-1/2'>
+                        <h3 className='font-semibold text-xl mb-3'>{mode.title}</h3>
+                        <p className='text-gray-500 text-sm leading-relaxed'>{mode.desc}</p>
+                      </div>
+                      <div className='w-1/2'>
+                        <img src={mode.image} alt="mode.title" 
+                            className='w-28 h-28 object-contain'
+                        />
+                      </div>
+                    </div>
+
+                  </motion.div>
+                ))
+              }
+            </div>
+
+          </div>
+
       </div>
       </div>
-        {showAuth && <AuthModel onClose={() => setShowAuth(false)} />}
+      {showAuth && <AuthModel onClose={() => setShowAuth(false)} />}
+      
+      <Footer/>
 
     </div>
   )
