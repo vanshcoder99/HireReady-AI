@@ -9,4 +9,3 @@ function Step3Report({report}) {
 }
 
 export default Step3Report
-{report}

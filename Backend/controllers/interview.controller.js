@@ -1,5 +1,6 @@
 import fs from "fs" 
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs"
+import { askAi } from "../services/openRouter.service.js"
 
 export const analyzeResume = async (req,res) => {
     try {
@@ -22,18 +23,60 @@ export const analyzeResume = async (req,res) => {
         // Extract text from all pages
         for(let pageNum = 1; pageNum <= pdf.numPages ; pageNum++){
             const page = await pdf.getPage(pageNum);
-            const content = await page.getTextContent();
+            const content = await page.getTextContent();  //this contains extracted byte to text object content.items is object array
 
-            const pageText = content.items.map(item => item.str).join(" ");
+            const pageText = content.items.map(item => item.str).join(" ");  //and text actual is in item.str of each array element of object
             resumeText += pageText + "\n";
         }
 
         resumeText = resumeText.replace(/\s+/g," ").trim();
 
-        
+        const messages = [
+            {
+                role: "system",   //what ai should do 
+                content: `
+                    Extract structured data from resume.
 
+                    Return strictly JSON:
+
+                    {
+                        "role": "string",
+                        "experience": "string",
+                        "projects": ["project1","project2"],
+                        "skills": ["skill1","skill2"],
+                    }
+                `
+            },
+            {
+                role: "user",   // what the user will provide to user
+                content: resumeText
+            }
+        ];
+
+        const aiResponse = await askAi(messages)
+
+        const parsed = JSON.parse(aiResponse);
+
+        fs.unlinkSync(filepath)
+
+        res.json({
+            role: parsed.role,
+            experience: parsed.experience,
+            projects: parsed.projects,
+            skills: parsed.skills,
+            resumeText
+        })
 
     } catch (error) {
-        
+        console.error(error);
+
+        if(req.file && fs.existsSync(req.file.path)){
+            fs.unlinkSync(req.file.path);
+        }
+
+        return res.status(500).json({
+            message: error.message,
+            statusCode: 500
+        })
     }
 }
