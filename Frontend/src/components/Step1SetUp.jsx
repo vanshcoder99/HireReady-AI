@@ -7,11 +7,44 @@ import {
     FaMicrophoneAlt,
     FaChartLine,
  } from 'react-icons/fa'
+ import axios from 'axios'
+import { ServerUrl } from '../App.jsx';
 function Step1SetUp({onStart}) {
 
     const[role,setRole] = useState("");
     const[experience,setExperience] = useState("");
     const[mode,setMode] = useState("Technical");
+    const[resumeFile,setResumeFile] = useState(null);
+    const[loading,setLoading] = useState(false);
+    const[skills,setSkills] = useState([]);
+    const[projects,setProjects] = useState([]);
+    const[resumeText,setResumeText] = useState("");
+    const[analysisDone,setAnalysisDone] = useState(false);
+    const[analyzing,setAnalyzing] = useState(false);
+
+    const handleUploadResume = async () => {
+        if(!resumeFile || analyzing) return;
+        setAnalyzing(true)
+
+        const formData = new FormData()
+        formData.append("resume",resumeFile)
+        try {
+            const result = await axios.post(ServerUrl + "/api/interview/resume",formData,{withCredentials:true})
+
+            console.log(result.data)
+
+            setRole(result.data.role || "");
+            setExperience(result.data.experience || "");
+            setProjects(result.data.projects || []);
+            setSkills(result.data.skills || []);
+            setResumeText(result.data.resumeText || "");
+            setAnalysisDone(true)
+            setAnalyzing(false)
+        } catch (error) {
+            console.log(error)
+            setAnalyzing(false)
+        }
+    }
 
   return (
     <motion.div
@@ -76,7 +109,73 @@ function Step1SetUp({onStart}) {
                 <h2 className='text-3xl font-bold text-gray-800 mb-8'>Interview SetUp</h2>
 
                 <div className='space-y-6'>
-                    <div className='relative'></div>
+                    <div className='relative'>
+                        <FaUserTie className='absolute top-4 left-4 text-gray-400'/>
+                        <input type='text' placeholder='Enter Role' 
+                            className='w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition'
+                            onChange={(e) => setRole(e.target.value)}
+                            value={role}
+                        />
+                    </div>
+
+                    <div className='relative'>
+                        <FaBriefcase className='absolute top-4 left-4 text-gray-400'/>
+                        <input type='text' placeholder='Experience (e.g. 2 years)' 
+                            className='w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition'
+                            onChange={(e) => setExperience(e.target.value)}
+                            value={experience}
+                        />
+                    </div>
+
+                    <select value={mode} onChange={(e) => setMode(e.target.value)}
+                        className='w-full py-3 px-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition'>
+                        <option value="Technical">Technical Interview</option>
+                        <option value="HR">HR Interview</option>
+                    </select>
+
+                    {!analysisDone && (
+                        <motion.div 
+                            whileHover={{scale: 1.02}}
+                            onClick={() => document.getElementById("resumeUpload").click()}
+                            className='border-2 border-dashed border-gray-300  rounded-xl p-8 text-center cursor-pointer hover:border-green-500 hover:bg-green-50 transition'>
+                            <FaFileUpload className='text-4xl mx-auto text-green-600 mb-3' />
+                            <input type="file" id='resumeUpload' 
+                                accept='application/pdf' className='hidden cursor-pointer'
+                                onChange={(e) => setResumeFile(e.target.files[0])}
+                            />
+
+                            <p className='text-gray-600 font-medium'>
+                                {resumeFile ? resumeFile.name : "Click to upload Resume (Optional)"}
+                            </p>
+
+                            {resumeFile && (
+                                <motion.button
+                                    onClick={(e) => {
+                                                    e.stopPropagation(); 
+                                                    handleUploadResume()
+                                                    }
+                                            }
+                                    whileHover={{scale: 1.02}}
+                                    className='mt-4 bg-gray-900 cursor-pointer text-white px-5 py-2 rounded-lg hover:bg-gray-800 transition'
+                                >
+                                    {analyzing ? "Analyzing..." : "Analyze Resume"}
+                                </motion.button>
+                            )}
+
+                        </motion.div>
+                    )}
+
+                    
+
+                    <motion.button
+                        disabled={!role || !experience}
+                        className='w-full disabled:bg-gray-600 bg-green-600 hover:bg-green-700 cursor-pointer text-white py-3 rounded-full text-lg font-semibold transition duration-300 shadow-md'
+                        whileHover={{scale: 1.02}}
+                        whileTap={{scale: 0.95}}
+                    >
+                        Start Interview
+                    </motion.button>
+                
                 </div>
 
             </motion.div>
