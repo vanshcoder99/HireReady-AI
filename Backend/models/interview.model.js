@@ -22,7 +22,7 @@ const interviewSchema = new mongoose.Schema({
         type:String,
         required: true
     },
-    expericence:{
+    experience:{
         type: String,
         required: true
     },

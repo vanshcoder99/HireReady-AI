@@ -84,13 +84,14 @@ export const analyzeResume = async (req, res) => {
 
 export const generateQuestions = async (req, res) => {
     try {
-        const { role, experience, mode, resumeText, projects, skills } = req.body;
+        let { role, experience, mode, resumeText, projects, skills } = req.body;
 
         role = role?.trim();
         experience = experience?.trim();
         mode = mode?.trim();
 
         if (!role || !experience || !mode) {
+            console.log("Role, Experience and Mode are required")
             return res.status(400).json({
                 message: "Role, Experience and Mode are required",
                 statusCode: 400
@@ -107,6 +108,7 @@ export const generateQuestions = async (req, res) => {
         }
 
         if (user.credits < 50) {
+            console.log("Not enough credits. Minimum 50 required.")
             return res.status(400).json({
                 message: "Not enough credits. Minimum 50 required."
             });
@@ -128,6 +130,7 @@ export const generateQuestions = async (req, res) => {
         `;
 
         if (!userPrompt.trim()) {
+            console.log("Prompt content is empty.")
             return res.status(400).json({
                 message: "Prompt content is empty."
             });
@@ -172,6 +175,7 @@ export const generateQuestions = async (req, res) => {
         const aiResponse = await askAi(messages)
 
         if (!aiResponse || !aiResponse.trim()) {
+            console.log("AI returned empty response")
             return res.status(500).json({
                 message: "AI returned empty response",
                 statusCode: 500
@@ -184,6 +188,7 @@ export const generateQuestions = async (req, res) => {
             .slice(0, 5);
 
         if (questionsArray.length === 0) {
+            console.log("AI failed to generate questions.")
             return res.status(500).json({
                 message: "AI failed to generate questions.",
                 statusCode: 500
@@ -196,7 +201,7 @@ export const generateQuestions = async (req, res) => {
         const interview = await Interview.create({
             userId: user._id,
             role,
-            expericence,
+            experience,
             mode,
             resumeText: safeResume,
             questions: questionsArray.map((q, index) => (
@@ -218,6 +223,7 @@ export const generateQuestions = async (req, res) => {
 
 
     } catch (error) {
+        console.log(`failed to create interview ${error}`)
         return res.status(500).json({
             message: `failed to create interview ${error}`,
             statusCode: 500
@@ -355,7 +361,7 @@ export const finishInterview = async (req,res) => {
         let totalCorrectness = 0;
 
         interview.questions.forEach((q) => {
-            totatScore += q.score || 0;
+            totalScore += q.score || 0;
             totalConfidence += q.confidence || 0;
             totalCommunication += q.communication || 0;
             totalCorrectness += q.correctness || 0;
