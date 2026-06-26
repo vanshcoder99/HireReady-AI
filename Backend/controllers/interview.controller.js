@@ -1,7 +1,7 @@
 import fs from "fs" 
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs"
 import { askAi } from "../services/openRouter.service.js"
-
+import User from "../models/user.model.js"
 export const analyzeResume = async (req,res) => {
     try {
         if(!req.file){
@@ -77,5 +77,98 @@ export const analyzeResume = async (req,res) => {
             message: error.message,
             statusCode: 500
         })
+    }
+}
+
+
+export const generateQuestions = async (req,res) => {
+    try {
+        const {role,experience,mode,resumeText,projects,skills} = req.body;
+
+        role = role?.trim();
+        experience = experience?.trim();
+        mode = mode?.trim();
+
+        if(!role || !experience || !mode){
+            return res.status(400).json({
+                message: "Role, Experience and Mode are required",
+                statusCode: 400
+            });
+        }
+
+        const user = await User.findById(req.userId)
+
+        if(!user){
+            return res.status(404).json({
+                message: "User not found.",
+                statusCode: 404
+            });
+        }
+
+        if(user.credits < 50) {
+            return res.status(400).json({
+                message: "Not enough credits. Minimum 50 required."
+            });
+        }
+
+        const projectText = Array.isArray(projects) && projects.length ? projects.join(", ") : "None";
+
+        const skillsText = Array.isArray(skills) && skills.length ? skills.join(", ") : "None";
+        
+        const safeResume = resumeText?.trim() || "None";
+        
+        const userPrompt = `
+            Role: ${role}
+            Experience: ${experience}
+            InterviewMode: ${mode}
+            projects: ${projectText}
+            skills: ${skillsText}
+            Resume: ${safeResume}
+        `;
+
+        if(!userPrompt.trim()){
+            return res.status(400).json({
+                message: "Prompt content is empty."
+            });
+        }
+
+        const messages = [
+            {
+                role: "system",
+                content: 
+                    `You are a real human interviewer conducting a professional interview.
+
+                    Speak in simple, natural English as if you are directly talking to the candidate.
+
+                    Generate exactly 5 interview questions.
+
+                    Strict Rules:
+                    - Each question must contain between 15 and 25 words.
+                    - Each question must be a single complete sentence.
+                    - Do Not number them.
+                    - Do Not add explanations.
+                    - Do Not add extra text before or after.
+                    - One question per line only.
+                    - Keep language simple and conversational.
+                    - Questions must feel practical and realistic.
+
+                    Difficulty progression:
+                    Question 1 -> easy
+                    Question 2 -> easy
+                    Question 3 -> medium
+                    Question 4 → medium  
+                    Question 5 → hard  
+
+                    Make questions based on the candidate’s role, experience,interviewMode, projects, skills, and resume details.
+                `
+            },
+            {
+                role: "user",
+                content: userPrompt
+            }
+        ];
+
+    } catch (error) {
+        
     }
 }
