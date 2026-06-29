@@ -122,7 +122,7 @@ function Step2Interview({interviewData, onFinish}) {
 
         setIsIntroPhase(false);   
       }
-      else if(currentQuestion)
+      // else if(currentQuestion)
     }
 
   },[selectedVoice,isIntroPhase])
