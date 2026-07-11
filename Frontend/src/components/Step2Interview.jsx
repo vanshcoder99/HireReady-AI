@@ -6,7 +6,7 @@ import { motion, time } from "motion/react"
 import { FaMicrophone, FaMicrophoneSlash } from "react-icons/fa"
 import axios from 'axios';
 import { ServerUrl } from '../App';
-import { BsArrowLeft } from 'react-icons/bs';
+import { BsArrowLeft, BsArrowRight } from 'react-icons/bs';
 function Step2Interview({interviewData, onFinish}) {
   const {interviewId, questions, userName} = interviewData;
   const [isIntroPhase,setIsIntroPhase] = useState(true);
@@ -155,7 +155,6 @@ function Step2Interview({interviewData, onFinish}) {
   useEffect(() => {
     if(isIntroPhase) return;
     if(!currentQuestion) return;
-    if(isSubmitting) return;
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if(prev<=1){
@@ -168,8 +167,13 @@ function Step2Interview({interviewData, onFinish}) {
 
     return () => clearInterval(timer)
 
-  },[isIntroPhase,currentIndex,isSubmitting])
+  },[isIntroPhase,currentIndex])
 
+  useEffect(() => {
+    if(!isIntroPhase && currentQuestion){
+      setTimeLeft(currentIndex.timeLeft || 60);
+    }
+  },[currentIndex])
 
   useEffect(() => {
     if(!("webkitSpeechRecognition" in window)) return;
@@ -243,7 +247,7 @@ function Step2Interview({interviewData, onFinish}) {
     setFeedback("");
 
     if(currentIndex + 1 >= questions.length) {
-      finishInterview();
+      await finishInterview();
       return;
     }
 
@@ -256,13 +260,43 @@ function Step2Interview({interviewData, onFinish}) {
   }
 
   const finishInterview = async () => {
-    // 8.36.00
+    stopMic();
+    setIsMicOn(false)
     try {
-      
+      const result = await axios.post(
+        ServerUrl + "/api/interview/finish",
+        { interviewId },
+        { withCredentials: true }
+      )
+      console.log("finishInterview response:", result.data)
+      onFinish(result.data)
+      return result.data
     } catch (error) {
-      
+      console.log("finishInterview error:", error)
+      return null
     }
   }
+
+  useEffect(() => {
+    if(isIntroPhase) return;
+    if(!currentQuestion) return;
+    if(timeLeft === 0 && !isSubmitting && !feedback){
+      submitAnswer();
+    }
+  },[timeLeft])
+
+  useEffect(() => {
+    return () => {
+      if(recognitionRef.current){
+        recognitionRef.current.stop();
+        recognitionRef.current.abort();
+      }
+
+      window.speechSynthesis.cancel();
+    }
+  },[]);
+
+
 
   return (
     <div className='min-h-screen bg-linear-to-br from-emerald-50 via-white to-teal-100 flex items-center justify-center p-4 sm:p-6'>
@@ -370,8 +404,8 @@ function Step2Interview({interviewData, onFinish}) {
 
               <button 
                 onClick={handleNext}
-                className='w-full bg-gradient-to-r from-emerald-600 to-teal-500 text-white py-3 rounded-xl shadow-md hover:opacity-90 transition flex items-center justify-center gap-1'>
-                Next Question <BsArrowLeft size={18}/>
+                className='w-full cursor-pointer bg-gradient-to-r from-emerald-600 to-teal-500 text-white py-3 rounded-xl shadow-md hover:opacity-90 transition flex items-center justify-center gap-1'>
+                Next Question <BsArrowRight size={18}/>
               </button>
 
             </motion.div>
