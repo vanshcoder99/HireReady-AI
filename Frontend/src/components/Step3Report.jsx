@@ -54,6 +54,10 @@ function Step3Report({ report }) {
     shortTagline = "Work on clarity and confidence.";
   }
 
+  const score = finalScore;
+  const percentage = (score/10) * 100;
+
+
   return (
     <div className='min-h-screen bg-linear-to-br from-gray-50 to-green-50 px-4 sm:px-6 py-8 lg:px-10'>
       <div className='mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 '>
@@ -80,11 +84,13 @@ function Step3Report({ report }) {
             animate={{opacity:1}}
             className='bg-white rounded-2xl sm:rounded-3xl shadow-lg p-6 sm:p-8 text-center'
           >
-            <div className='w-20 h-20'>
+            <h3 className='text-gray-500 mb-4 sm:mb-6 text-sm sm:text-base'>Overall Performance</h3>
+            <div className='relative w-20 h-20 sm:w-25 sm:h-25 mx-auto'>
                   <CircularProgressbar 
-                    value={percentage} text={`${timeleft}s`}
+                    value={percentage} 
+                    text={`${score}/10`}
                     styles={buildStyles({
-                      textSize: "28px",
+                      textSize: "18px",
                       pathColor: "#10b981",
                       textColor: "#ef4444",
                       trailColor: "#e5e7eb",          
