@@ -4,7 +4,6 @@ import { useEffect } from 'react';
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { ServerUrl } from '../App';
-import { FaArrowLeft } from 'react-icons/fa';
 
 function InterviewHistory() {
     const [interviews,setInterviews] = useState([]);
@@ -24,17 +23,13 @@ function InterviewHistory() {
     },[])
     
   return (
-    <div className='min-h-screen bg-linear-to-br from-gray-50 to-emerald-50 py-10'>
-        <div className='w-[90vm] lg:w-[70vm] max-w-[90%] mx-auto'>
-            <div className='mb-10 w-full flex  flex-wrap items-start gap-4'>
-                <button onClick={() => navigate("/")} className='mt-1 p-3 rounded-full bg-white shadow cursor-pointer hover:shadow-md transition'><FaArrowLeft className='text-gray-600'/></button>
-                
-                <div>
-                    <h1 className='text-3xl font-bold text-gray-800 flex-nowrap'>Interview History</h1>
-                    <p className='text-gray-500 mt-2'>
-                        Track your past interviews and performance
-                    </p>
-                </div>
+    <div className='py-2'>
+        <div className='max-w-4xl'>
+            <div className='mb-8'>
+                <h1 className='text-2xl font-bold text-gray-900'>Interview History</h1>
+                <p className='text-gray-500 mt-1 text-sm'>
+                    Track your past interviews and performance
+                </p>
             </div>
 
             {interviews.length === 0 ? 
@@ -80,7 +75,6 @@ function InterviewHistory() {
                 ))}
             </div>
             }
-
         </div>
     </div>
   )

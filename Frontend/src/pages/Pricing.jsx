@@ -1,12 +1,13 @@
-import React from 'react'
-import { useState } from 'react'
-import { FaArrowLeft, FaCheckCircle } from 'react-icons/fa'
+import React, { useState } from 'react'
+import { FaCheckCircle } from 'react-icons/fa'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
+import Navbar from '../components/Navbar.jsx'
+import Footer from '../components/Footer.jsx'
+
 function Pricing() {
   const navigate = useNavigate()
-
-  const [selectedPlan,setSelectedPlan] = useState("free")
+  const [selectedPlan, setSelectedPlan] = useState("free")
 
   const plans = [
     {
@@ -14,7 +15,7 @@ function Pricing() {
       name: "Free",
       price: "₹0",
       credits: 100,
-      description: "Perfect for begineers starting interview preparation.",
+      description: "Perfect for beginners starting interview preparation.",
       features: [
         "100 AI Interview Credits",
         "Basic Performance Report",
@@ -25,7 +26,7 @@ function Pricing() {
     },
     {
       id: "basic",
-      name: "Started Pack",
+      name: "Starter Pack",
       price: "₹100",
       credits: 150,
       description: "Great for focused practice and skill improvement.",
@@ -53,95 +54,101 @@ function Pricing() {
   ]
 
   return (
-    <div className='min-h-screen bg-gradient-to-br from-gray-50 to-emerald-50 py-16 px-6'>
-      <div className='max-w-6xl mx-auto mb-14 flex items-start gap-4'>
-        <button onClick={() => navigate("/")} className='mt-2 p-3 cursor-pointer rounded-full bg-white shadow hover:shadow-md transition'>
-          <FaArrowLeft className='text-gray-600'/>
-        </button>
+    <div className='min-h-screen bg-[#fafafa] dark:bg-[#090d16] text-gray-900 dark:text-gray-100 flex flex-col justify-between selection:bg-emerald-500 selection:text-white relative overflow-hidden transition-colors duration-300'>
+      {/* Background Decorative Lighting */}
+      <div className='absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[500px] bg-gradient-to-b from-emerald-500/10 via-teal-500/5 to-transparent blur-3xl pointer-events-none -z-10 dark:from-emerald-500/20 dark:via-teal-500/10' />
 
-        <div className='text-center w-full'>
-          <h1 className='text-4xl font-bold text-gray-800'>Choose Your Plan</h1>
-          <p className='text-gray-500 mt-3 text-lg'>
-            Flexible pricing to match your interview preparation goals
+      <Navbar />
+
+      <div className='pt-28 pb-20 px-6 max-w-6xl mx-auto w-full flex-1'>
+        {/* Page Header */}
+        <div className='text-center mb-16'>
+          <span className='text-emerald-600 dark:text-emerald-400 text-xs font-bold uppercase tracking-widest bg-emerald-50 dark:bg-emerald-950/60 px-3.5 py-1.5 rounded-full border border-emerald-100 dark:border-emerald-800/60'>
+            Pricing Plans
+          </span>
+          <h1 className='text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white mt-4 tracking-tight'>
+            Choose Your <span className='text-emerald-600 dark:text-emerald-400'>Plan</span>
+          </h1>
+          <p className='text-gray-600 dark:text-gray-400 mt-3 text-base sm:text-lg max-w-xl mx-auto font-normal'>
+            Flexible pricing tailored to match your placement preparation goals.
           </p>
         </div>
 
-      </div>
-      
-      <div className='grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto'>
-        {plans.map((plan) => {
-          const isSelected = selectedPlan === plan.id
+        {/* Pricing Cards Grid */}
+        <div className='grid md:grid-cols-2 lg:grid-cols-3 gap-8'>
+          {plans.map((plan) => {
+            const isSelected = selectedPlan === plan.id
 
-          return(
-            <motion.div key={plan.id}
-              whileHover={!plan.default && {scale:1.03}}
-              onClick={() => !plan.default && setSelectedPlan(plan.id)}
-              className={`relative rounded-3xl p-8 transition-all duration-300 
-                border
-                  ${
-                    isSelected 
-                    ? "border-emerald-600 shadow-2xl bg-white"
-                    : "border-gray-200 bg-white shadow-md"
-                  }
-                  ${plan.default ? "cursor-default" : "cursor-pointer"}
-                
-                `}
-            >
-              {/* Badge */}
-              {plan.badge && (
-                <div className='absolute top-6 right-6 bg-emerald-600 text-white text-xs px-4 py-1 rounded-full shadow'>
-                  {plan.badge}
-                </div>
-              )}
+            return (
+              <motion.div
+                key={plan.id}
+                whileHover={!plan.default ? { y: -6 } : {}}
+                onClick={() => !plan.default && setSelectedPlan(plan.id)}
+                className={`relative rounded-3xl p-8 transition-all duration-300 border bg-white dark:bg-gray-900 flex flex-col justify-between ${
+                  isSelected
+                    ? "border-emerald-500 shadow-xl ring-2 ring-emerald-500/20"
+                    : "border-gray-200/90 dark:border-gray-800 shadow-sm hover:shadow-md"
+                } ${plan.default ? "cursor-default" : "cursor-pointer"}`}
+              >
+                <div>
+                  {/* Badge */}
+                  {plan.badge && (
+                    <div className='absolute top-6 right-6 bg-emerald-600 text-white text-xs font-bold px-3.5 py-1 rounded-full shadow-sm'>
+                      {plan.badge}
+                    </div>
+                  )}
 
-              {/* Default Tag */}
-              {plan.default && (
-                <div className='absolute top-6 right-6 bg-gray-200 text-gray-700 text-xs px-3 py-1 rounded-full'>
-                  Default
-                </div>
-              )}
+                  {/* Default Tag */}
+                  {plan.default && (
+                    <div className='absolute top-6 right-6 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-xs font-semibold px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700'>
+                      Default
+                    </div>
+                  )}
 
-              {/* Plan Name */}
-              <h3 className='text-xl font-semibold text-gray-800'>{plan.name}</h3>
+                  {/* Plan Name */}
+                  <h3 className='text-xl font-bold text-gray-900 dark:text-white'>{plan.name}</h3>
 
-              {/* Price */}
-              <div className='mt-4'>
-                <span className='text-3xl font-bold text-emerald-600'>{plan.price}</span>
-                <p className='text-gray-500 mt-l'>{plan.credits} Credits</p>
-              </div>
-
-              {/* Description */}
-              <p className='text-gray-500 mt-4 text-sm leading-relaxed'>{plan.description}</p>
-
-              {/* Features */}
-              <div className='mt-6 space-y-3 text-left'>
-                {plan.features.map((feature,i) => (
-                  <div key={i} className='flex items-center gap-3'>
-                    <FaCheckCircle className='text-emerald-500 text-sm'/>
-                    <span className='text-gray-700 text-sm'>
-                      {feature}
-                    </span>
+                  {/* Price & Credits */}
+                  <div className='mt-4 flex items-baseline gap-2'>
+                    <span className='text-4xl font-extrabold text-gray-900 dark:text-white'>{plan.price}</span>
+                    <span className='text-sm text-emerald-600 dark:text-emerald-400 font-semibold'>/ {plan.credits} Credits</span>
                   </div>
-                ))}
-              </div>
 
-              { !plan.default &&
-                <button className={`w-full cursor-pointer mt-8 py-3 rounded-xl font-semibold transition 
-                  ${
-                    isSelected 
-                    ? "bg-emerald-600 text-white hover:opacity-90"
-                    : "bg-gray-100 text-gray-700 hover:bg-emerald-50"
-                  }`}>
+                  {/* Description */}
+                  <p className='text-gray-600 dark:text-gray-400 mt-3 text-sm leading-relaxed'>{plan.description}</p>
+
+                  {/* Features List */}
+                  <div className='mt-6 space-y-3.5 text-left border-t border-gray-100 dark:border-gray-800 pt-6'>
+                    {plan.features.map((feature, i) => (
+                      <div key={i} className='flex items-center gap-3'>
+                        <FaCheckCircle className='text-emerald-500 text-sm flex-shrink-0' />
+                        <span className='text-gray-700 dark:text-gray-300 text-sm font-medium'>
+                          {feature}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Plan Action Button */}
+                {!plan.default && (
+                  <button
+                    className={`w-full cursor-pointer mt-8 py-3.5 rounded-2xl font-semibold text-sm transition-all ${
+                      isSelected
+                        ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20"
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-emerald-50 dark:hover:bg-gray-700 hover:text-emerald-700 dark:hover:text-emerald-400"
+                    }`}
+                  >
                     {isSelected ? "Proceed to Pay" : "Select Plan"}
                   </button>
-
-              }
-
-            </motion.div>
-          )
-        })}
+                )}
+              </motion.div>
+            )
+          })}
+        </div>
       </div>
 
+      <Footer />
     </div>
   )
 }
