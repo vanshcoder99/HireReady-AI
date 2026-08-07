@@ -9,7 +9,7 @@ import {
   BsFileEarmarkPdf,
   BsArrowCounterclockwise
 } from 'react-icons/bs'
-import { ServerUrl } from '../../App.jsx'
+import { ServerUrl } from '../../App'
 
 function DocumentContentTab({ doc }) {
   const [zoom, setZoom] = useState(100)

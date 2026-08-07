@@ -7,7 +7,7 @@ import {
   BsPerson, 
   BsLightbulb
 } from 'react-icons/bs'
-import { ServerUrl } from '../../App.jsx'
+import { ServerUrl } from '../../App'
 
 const promptSuggestions = [
   "Summarize key technical points from this document",
@@ -16,16 +16,23 @@ const promptSuggestions = [
   "What are the core definitions and terms mentioned?",
 ]
 
-function DocumentChatTab({ doc }) {
-  const docId = doc?._id || doc?.id
-  const [messages, setMessages] = useState([
+interface ChatMessage {
+  id: string | number;
+  sender: string;
+  text: string;
+  timestamp: string;
+}
+
+function DocumentChatTab({ doc }: { doc?: any }) {
+  const docId = doc?._id || doc?.id;
+  const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'init-1',
       sender: 'ai',
       text: `Hello! I'm your OpenRouter AI assistant for "${doc?.title || 'this document'}". Ask me anything about its contents, code snippets, key points, or interview questions.`,
       timestamp: 'Just now',
     },
-  ])
+  ]);
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const messagesEndRef = useRef(null)

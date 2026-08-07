@@ -13,7 +13,7 @@ import {
   BsCopy,
   BsArrowRepeat
 } from 'react-icons/bs'
-import { ServerUrl } from '../../App.jsx'
+import { ServerUrl } from '../../App'
 
 const actionsList = [
   {
