@@ -1,0 +1,337 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                        String                @id @default(uuid())
+  name                      String
+  email                     String                @unique
+  role                      String                @default("learner")
+  credits                   Int                   @default(100)
+  savedResumeAnalysis       Json?
+  savedRoadmap              Json?
+
+  // Interviewer profile fields
+  interviewerTitle          String?               @default("Senior Tech Interviewer")
+  interviewerCompany        String?               @default("Tech Enterprise")
+  yearsOfExperience         Int?                  @default(5)
+  skills                    String[]              @default([])
+  languages                 String[]              @default(["English"])
+  bio                       String?               @default("")
+  rating                    Float?                @default(4.9)
+  avatarUrl                 String?               @default("")
+  isApproved                Boolean?              @default(false)
+
+  // Bank details
+  bankAccountHolderName     String?               @default("")
+  bankName                  String?               @default("")
+  accountNumber             String?               @default("")
+  ifscCode                  String?               @default("")
+  upiId                     String?               @default("")
+  bankIsVerified            Boolean?              @default(false)
+
+  // Verification details
+  phoneNumber               String?               @default("")
+  dob                       String?               @default("")
+  linkedinUrl               String?               @default("")
+  githubUrl                 String?               @default("")
+  governmentIdUrl           String?               @default("")
+  panCardUrl                String?               @default("")
+  aadhaarUrl                String?               @default("")
+  resumeUrl                 String?               @default("")
+  resumeOriginalName        String?               @default("")
+  degreeUrl                 String?               @default("")
+  degreeOriginalName        String?               @default("")
+  verificationStatus        String?               @default("unverified")
+  extractedResumeName       String?               @default("")
+  extractedDegreeName       String?               @default("")
+  extractedExperienceYears  Int?                  @default(0)
+  extractedSkills           String[]              @default([])
+  nameMatchScore            Float?                @default(0)
+  isNameMatched             Boolean?              @default(false)
+  mismatchReason            String?               @default("")
+  auditSummary              String?               @default("")
+  auditedAt                 DateTime?
+
+  createdAt                 DateTime              @default(now())
+  updatedAt                 DateTime              @updatedAt
+
+  // Relations
+  bookings                  Booking[]             @relation("UserBookings")
+  mentorBookings            Booking[]             @relation("MentorBookings")
+  documents                 Document[]
+  documentSessions          DocumentSession[]
+  flashcardSets             FlashcardSet[]
+  interviews                Interview[]
+  interviewMessages         InterviewMessage[]
+  learnerRooms              InterviewRoom[]       @relation("LearnerRooms")
+  interviewerRooms          InterviewRoom[]       @relation("InterviewerRooms")
+  interviewSlots            InterviewSlot[]
+  earnings                  InterviewerEarnings[]
+  payments                  Payment[]
+  quizzes                   Quiz[]
+  wallet                    InterviewerWallet?
+  withdrawalRequests        WithdrawalRequest[]
+}
+
+model Booking {
+  id                   String                @id @default(uuid())
+  userId               String
+  user                 User                  @relation("UserBookings", fields: [userId], references: [id], onDelete: Cascade)
+  mentorId             String?
+  mentor               User?                 @relation("MentorBookings", fields: [mentorId], references: [id])
+  slotId               String?
+  slot                 InterviewSlot?        @relation(fields: [slotId], references: [id])
+  date                 String
+  timeSlot             String
+  status               String                @default("Scheduled")
+  roomId               String
+  notes                String                @default("")
+
+  // Evaluation & Feedback
+  overallRating        Float                 @default(0)
+  technicalScore       Float                 @default(0)
+  communicationScore   Float                 @default(0)
+  problemSolvingScore  Float                 @default(0)
+  finalScore           Float                 @default(0)
+  interviewerFeedback  String                @default("")
+  strengths            String[]              @default([])
+  weaknesses           String[]              @default([])
+  suggestions          String[]              @default([])
+  recommendation       String                @default("")
+
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+
+  rooms                InterviewRoom[]
+  earnings             InterviewerEarnings[]
+}
+
+model Document {
+  id                String            @id @default(uuid())
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title             String
+  originalName      String
+  filePath          String
+  fileUrl           String?
+  fileSize          Int               @default(0)
+  pageCount         Int               @default(1)
+  extractedText     String            @default("")
+  summary           String            @default("")
+  category          String            @default("General")
+  flashcardsCount   Int               @default(0)
+  quizzesCount      Int               @default(0)
+  summaryAvailable  Boolean           @default(false)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  sessions          DocumentSession[]
+  flashcardSets     FlashcardSet[]
+  quizzes           Quiz[]
+}
+
+model DocumentSession {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  messages   Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model FlashcardSet {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentId    String?
+  document      Document? @relation(fields: [documentId], references: [id])
+  title         String
+  cards         Json
+  totalCards    Int       @default(0)
+  reviewedCount Int       @default(0)
+  masteredCount Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Interview {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       String
+  experience String
+  mode       String
+  resumeText String?
+  questions  Json
+  finalScore Float    @default(0)
+  status     String   @default("Incompleted")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model InterviewMessage {
+  id         String   @id @default(uuid())
+  roomId     String
+  senderId   String?
+  sender     User?    @relation(fields: [senderId], references: [id])
+  senderName String   @default("System")
+  senderRole String   @default("system")
+  message    String
+  type       String   @default("text")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model InterviewRoom {
+  id            String    @id @default(uuid())
+  roomId        String    @unique
+  bookingId     String?
+  booking       Booking?  @relation(fields: [bookingId], references: [id])
+  learnerId     String?
+  learner       User?     @relation("LearnerRooms", fields: [learnerId], references: [id])
+  interviewerId String?
+  interviewer   User?     @relation("InterviewerRooms", fields: [interviewerId], references: [id])
+  status        String    @default("waiting")
+  startTime     DateTime?
+  endTime       DateTime?
+  aiNotes       String?   @default("")
+  summary       Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model InterviewSlot {
+  id              String    @id @default(uuid())
+  interviewerId   String?
+  interviewer     User?     @relation(fields: [interviewerId], references: [id])
+  interviewerName String
+  company         String    @default("Tech Enterprise")
+  role            String    @default("Frontend")
+  experienceLevel String    @default("Intermediate (1-3 yrs)")
+  duration        String    @default("45 Minutes")
+  date            String
+  time            String
+  price           Float     @default(299)
+  availableSlots  Int       @default(1)
+  requiredSkills  String[]  @default([])
+  description     String?   @default("")
+  status          String    @default("published")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  bookings        Booking[]
+}
+
+model InterviewerEarnings {
+  id            String   @id @default(uuid())
+  interviewerId String
+  interviewer   User     @relation(fields: [interviewerId], references: [id], onDelete: Cascade)
+  bookingId     String?
+  booking       Booking? @relation(fields: [bookingId], references: [id])
+  slotRole      String   @default("Technical Interview")
+  amount        Float
+  platformFee   Float
+  netEarnings   Float
+  status        String   @default("pending")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Mentor {
+  id             String   @id @default(uuid())
+  name           String
+  role           String
+  company        String
+  expertise      String[] @default([])
+  rating         Float    @default(4.9)
+  sessionsCount  Int      @default(100)
+  avatar         String   @default("AM")
+  color          String   @default("bg-emerald-600")
+  bio            String?
+  availableSlots Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Payment {
+  id                String   @id @default(uuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId            String?
+  amount            Float?
+  credits           Int?
+  razorpayOrderId   String?
+  razorpayPaymentId String?
+  status            String   @default("created")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Quiz {
+  id               String    @id @default(uuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentId       String?
+  document         Document? @relation(fields: [documentId], references: [id])
+  title            String
+  questions        Json
+  totalQuestions   Int       @default(0)
+  bestScore        Float     @default(0)
+  attemptsCount    Int       @default(0)
+  lastAttemptScore Float     @default(0)
+  status           String    @default("not_started")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model InterviewerWallet {
+  id             String              @id @default(uuid())
+  interviewerId  String              @unique
+  interviewer    User                @relation(fields: [interviewerId], references: [id], onDelete: Cascade)
+  balance        Float               @default(0)
+  pendingBalance Float               @default(0)
+  totalEarned    Float               @default(0)
+  totalWithdrawn Float               @default(0)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  transactions   WalletTransaction[]
+}
+
+model WalletTransaction {
+  id            String            @id @default(uuid())
+  walletId      String
+  wallet        InterviewerWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  interviewerId String
+  amount        Float
+  type          String
+  status        String            @default("COMPLETED")
+  description   String
+  bookingId     String?
+  createdAt     DateTime          @default(now())
+}
+
+model WithdrawalRequest {
+  id                String   @id @default(uuid())
+  interviewerId     String
+  interviewer       User     @relation(fields: [interviewerId], references: [id], onDelete: Cascade)
+  amount            Float
+  status            String   @default("PENDING")
+  accountHolderName String
+  accountNumber     String
+  ifscCode          String
+  bankName          String
+  upiId             String?
+  adminNote         String?  @default("")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
