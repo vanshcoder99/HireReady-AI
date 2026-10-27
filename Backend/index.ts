@@ -48,6 +48,10 @@ app.use('/public', express.static('public'));
 app.use('/uploads', express.static('public'));
 app.use('/uploads', express.static('uploads'));
 
+app.get('/', (_req, res) => {
+  res.status(200).json({ status: 'active', message: 'HireReady.AI Backend API is up and running' });
+});
+
 app.use('/api/auth', authRouter);
 app.use('/api/user', userRouter);
 app.use('/api/payment', paymentRouter);
