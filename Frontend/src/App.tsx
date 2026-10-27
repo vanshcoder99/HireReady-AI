@@ -26,8 +26,7 @@ import InterviewerProfile from './pages/InterviewerProfile';
 import InterviewerCreateSlots from './pages/InterviewerCreateSlots';
 import InterviewRoom from './pages/InterviewRoom';
 import AppLayout from './components/layout/AppLayout';
-
-export const ServerUrl = 'http://localhost:8000';
+export const ServerUrl = (import.meta.env.VITE_BACKEND_URL as string) || 'http://localhost:8000';
 
 
 function App() {

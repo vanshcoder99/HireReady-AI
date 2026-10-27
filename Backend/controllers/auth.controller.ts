@@ -26,10 +26,12 @@ export const googleAuth = async (req: Request, res: Response): Promise<any> => {
 
     const token = await genToken(user.id);
 
+    const isProduction = process.env.NODE_ENV === 'production';
+
     res.cookie('token', token, {
       httpOnly: true,
-      secure: false,
-      sameSite: 'strict',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -47,7 +49,12 @@ export const googleAuth = async (req: Request, res: Response): Promise<any> => {
 
 export const logOut = async (_req: Request, res: Response): Promise<any> => {
   try {
-    res.clearCookie('token');
+    const isProduction = process.env.NODE_ENV === 'production';
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+    });
     return res.status(200).json({
       message: 'Logout Successfully',
       StatusCode: 200,
