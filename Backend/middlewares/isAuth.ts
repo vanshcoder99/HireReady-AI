@@ -16,7 +16,9 @@ interface JwtPayload {
 
 const isAuth = async (req: AuthRequest, res: Response, next: NextFunction): Promise<any> => {
   try {
-    const { token } = req.cookies || {};
+    const authHeader = req.headers.authorization;
+    const headerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
+    const token = req.cookies?.token || headerToken;
 
     if (!token) {
       return res.status(401).json({

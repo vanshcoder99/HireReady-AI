@@ -21,26 +21,31 @@ const app = express();
 app.set('trust proxy', 1);
 const server = http.createServer(app);
 
-const allowedOrigins = [
-  'http://localhost:5173',
-  process.env.FRONTEND_URL,
-].filter(Boolean) as string[];
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, callback) => {
+    // If no origin (e.g. mobile apps, curl, server-to-server), allow it
+    if (!origin) return callback(null, true);
+    // Dynamically reflect the requesting origin so withCredentials: true works
+    callback(null, origin);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  exposedHeaders: ['Set-Cookie'],
+};
 
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins.length > 0 ? allowedOrigins : '*',
+    origin: (origin, callback) => {
+      callback(null, origin || true);
+    },
     credentials: true,
   },
 });
 
 app.set('io', io);
 
-app.use(
-  cors({
-    origin: allowedOrigins.length > 0 ? allowedOrigins : '*',
-    credentials: true,
-  })
-);
+app.use(cors(corsOptions));
 
 app.use(express.json());
 app.use(cookieParser());
