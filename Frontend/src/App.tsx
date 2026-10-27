@@ -23,10 +23,12 @@ import Analytics from './pages/Analytics';
 import Roadmaps from './pages/Roadmaps';
 import InterviewerDashboard from './pages/InterviewerDashboard';
 import InterviewerProfile from './pages/InterviewerProfile';
+import InterviewerCreateSlots from './pages/InterviewerCreateSlots';
 import InterviewRoom from './pages/InterviewRoom';
 import AppLayout from './components/layout/AppLayout';
 
 export const ServerUrl = 'http://localhost:8000';
+
 
 function App() {
   const dispatch = useDispatch();
@@ -193,6 +195,22 @@ function App() {
         element={
           <AppLayout>
             <InterviewerDashboard />
+          </AppLayout>
+        }
+      />
+      <Route
+        path="/interviewer/create-slots"
+        element={
+          <AppLayout>
+            <InterviewerCreateSlots />
+          </AppLayout>
+        }
+      />
+      <Route
+        path="/interviewer/slots"
+        element={
+          <AppLayout>
+            <InterviewerCreateSlots />
           </AppLayout>
         }
       />

@@ -8,6 +8,13 @@ export interface BankDetails {
 }
 
 export interface VerificationDetails {
+  phoneNumber?: string;
+  dob?: string;
+  linkedinUrl?: string;
+  githubUrl?: string;
+  governmentIdUrl?: string;
+  panCardUrl?: string;
+  aadhaarUrl?: string;
   resumeUrl: string;
   resumeOriginalName: string;
   degreeUrl: string;
@@ -298,3 +305,10 @@ export interface DashboardSummary {
   recentInterviews: Interview[];
   recentBookings: Booking[];
 }
+
+declare global {
+  interface Window {
+    Razorpay?: any;
+  }
+}
+

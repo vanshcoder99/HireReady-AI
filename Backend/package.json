@@ -12,7 +12,9 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.3",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "@types/pg": "^8.23.1",
     "axios": "^1.18.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
@@ -21,6 +23,7 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.2.0",
     "pdfjs-dist": "^6.0.227",
+    "pg": "^8.23.0",
     "razorpay": "^2.9.8",
     "socket.io": "^4.8.3"
   },
@@ -31,7 +34,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.2.0",
     "@types/node": "^26.1.2",
-    "prisma": "^6.19.3",
+    "prisma": "^7.10.0",
     "tsx": "^4.23.5",
     "typescript": "^7.0.2"
   }
