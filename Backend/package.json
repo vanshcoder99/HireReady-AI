@@ -8,7 +8,7 @@
   "main": "index.ts",
   "scripts": {
     "dev": "tsx watch index.ts",
-    "build": "tsc",
+    "build": "prisma generate && esbuild index.ts --platform=node --format=esm --packages=external --bundle --outfile=dist/index.js",
     "start": "node dist/index.js"
   },
   "dependencies": {
@@ -34,6 +34,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.2.0",
     "@types/node": "^26.1.2",
+    "esbuild": "^0.28.2",
     "prisma": "^7.10.0",
     "tsx": "^4.23.5",
     "typescript": "^7.0.2"
