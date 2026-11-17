@@ -26,6 +26,7 @@ import {
   BsSunFill,
   BsMoonStarsFill,
   BsPlusCircle,
+  BsCodeSlash,
 } from 'react-icons/bs';
 
 interface NavItem {
@@ -42,6 +43,7 @@ const learnerNavItems: NavItem[] = [
   { label: 'Flashcards', icon: <BsLayers size={18} />, path: '/flashcards' },
   { label: 'Quizzes', icon: <BsQuestionCircle size={18} />, path: '/quizzes' },
   { label: 'Roadmaps', icon: <BsMap size={18} />, path: '/roadmaps' },
+  { label: 'Blind 75 Sheet', icon: <BsCodeSlash size={18} />, path: '/blind75' },
   { label: 'Human Interviews', icon: <BsPeople size={18} />, path: '/human-interviews' },
   { label: 'Analytics', icon: <BsBarChart size={18} />, path: '/analytics' },
 ];

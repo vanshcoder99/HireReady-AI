@@ -21,10 +21,13 @@ import HumanInterviews from './pages/HumanInterviews';
 import Profile from './pages/Profile';
 import Analytics from './pages/Analytics';
 import Roadmaps from './pages/Roadmaps';
+import Blind75 from './pages/Blind75';
 import InterviewerDashboard from './pages/InterviewerDashboard';
 import InterviewerProfile from './pages/InterviewerProfile';
 import InterviewerCreateSlots from './pages/InterviewerCreateSlots';
 import InterviewRoom from './pages/InterviewRoom';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
 import AppLayout from './components/layout/AppLayout';
 export const ServerUrl = (import.meta.env.VITE_BACKEND_URL as string) || 'http://localhost:8000';
 
@@ -57,6 +60,10 @@ function App() {
       <Route path="/how-it-works" element={<HowItWorksPage />} />
       <Route path="/interview" element={<InterviewPage />} />
       <Route path="/interview/room/:id" element={<InterviewRoom />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      <Route path="/terms" element={<TermsOfService />} />
+      <Route path="/terms-of-service" element={<TermsOfService />} />
 
       {/* Candidate App routes (with layout) */}
       <Route
@@ -160,6 +167,22 @@ function App() {
         element={
           <AppLayout>
             <Roadmaps />
+          </AppLayout>
+        }
+      />
+      <Route
+        path="/blind75"
+        element={
+          <AppLayout>
+            <Blind75 />
+          </AppLayout>
+        }
+      />
+      <Route
+        path="/practice"
+        element={
+          <AppLayout>
+            <Blind75 />
           </AppLayout>
         }
       />

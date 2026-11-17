@@ -27,6 +27,9 @@
   - [6. Intelligent Study & Document Hub](#6-intelligent-study--document-hub)
   - [7. Performance Analytics & Insights](#7-performance-analytics--insights)
   - [8. Credits, Payments & Interviewer Payouts](#8-credits-payments--interviewer-payouts)
+  - [9. Blind 75 LeetCode Sheet with AI Hints & Dynamic Guidance](#9-blind-75-leetcode-sheet-with-ai-hints--dynamic-guidance)
+  - [10. Legal, Privacy & Compliance Suite](#10-legal-privacy--compliance-suite)
+  - [11. Dedicated Discovery & Showcase Pages](#11-dedicated-discovery--showcase-pages)
 - [System Architecture](#-system-architecture)
 - [Tech Stack](#-tech-stack)
 - [Project Directory Structure](#-project-directory-structure)
@@ -148,15 +151,61 @@ Traditional interview preparation is fragmented: candidates read static intervie
 ### 8. Credits, Payments & Interviewer Payouts
 - **Freemium Credit Engine**:
   - New users receive **100 free credits** upon registration.
-  - AI Mock Interview: Consumes 50 credits per complete session.
-  - Document Processing: Consumes 20 credits per upload.
+  - **AI Mock Interview**: Consumes **50 credits** per complete 5-question session with instant grading & scoring.
+  - **Blind 75 Dynamic AI Guidance**: Consumes **50 credits** per deep-dive coaching query with step-by-step breakdown.
+  - **Document AI Processing**: Consumes **20 credits** per PDF upload & AI text analysis.
+  - **Custom AI Quiz Generation**: Consumes **20 credits** per 4-question interactive quiz.
 - **Recharge Packs (Razorpay)**:
   - **Starter Pack**: ₹100 for 150 credits.
   - **Pro Pack**: ₹500 for 650 credits (Best Value).
+  - Secure instant payment verification via Razorpay HMAC SHA256 signatures with live balance refresh.
 - **Interviewer Financial Ecosystem**:
   - Transparent **80/20 revenue share** (80% net earnings credited to the interviewer, 20% platform commission).
   - **Wallet & Payout Dashboard**: Displays total earned, available balance, pending funds, and historical transactions.
   - **Withdrawal Requests**: Interviewers can request payouts directly to their verified Bank Account (via IFSC) or UPI ID.
+
+---
+
+### 9. Blind 75 LeetCode Sheet with AI Hints & Dynamic Guidance
+- **Complete Canonical Blind 75 Collection**: All 75 canonical questions across 11 core patterns:
+  - *Arrays & Hashing, Two Pointers, Sliding Window, Bit Manipulation, Dynamic Programming, Trees & Tries, Graphs, Intervals, Linked List, Matrix, and Heap & Priority Queue*.
+- **Direct LeetCode External Problem Links**: Every question links directly to its official LeetCode problem URL (`target="_blank" rel="noopener noreferrer"`) for immediate browser-based solving.
+- **Color-Coded Difficulty Badges**: Visual indicators for **Easy** (Emerald), **Medium** (Amber), and **Hard** (Rose).
+- **Tick & Black/Dark Completion Toggle**: 
+  - Interactive checkbox toggle that transforms between an empty border and a solid black/dark background with a prominent checkmark (`✓`) when marked solved.
+  - Instant client-side persistence using `localStorage` (`blind75_completed_problems`), preserving problem completion state across browser refreshes and sessions.
+  - Real-time progress bar displaying total solved count (e.g., `18 / 75 Solved - 24% Complete`).
+- **Two-Stage Progressive AI Hints (Free)**:
+  - **Hint 1 (Pattern & Intuition)**: Guides the student toward the foundational pattern without giving away code.
+  - **Hint 2 (Algorithm & Complexity)**: Highlights data structures, handling edge cases, and achieving target time $O(N)$ and space $O(1)$ complexities.
+- **Dynamic AI Mentor Guidance (50 Credits per Query)**:
+  - Interactive, dynamic AI guidance drawer powered by authenticated backend endpoint `POST /api/ai/blind75-guidance`.
+  - Candidates can submit specific doubts or request step-by-step intuition, code approach, dry runs, and edge-case handling.
+  - Automatically validates balance, deducts **50 credits** upon submission, and updates the candidate's credit balance across the UI in real time.
+
+---
+
+### 10. Legal, Privacy & Compliance Suite
+- **Complete In-App Legal Documentation**: Dedicated, professionally structured policy pages accessible at `/privacy` and `/terms`.
+- **Privacy Policy (`/privacy` & `/privacy-policy`)**:
+  - **11 Detailed Articles**: Transparently explains the collection, storage, and processing of speech audio, Web Speech STT transcripts, AI mock scores, resume PDF text, WebRTC video calling data, and Razorpay billing information.
+  - **Zero Audio/Video Recording Storage**: Explicit policy confirming that live WebRTC video and microphone audio streams are strictly peer-to-peer and never stored or recorded on server disks.
+  - **Resume Data Safeguards**: Outlines how uploaded resumes are parsed in-memory, analyzed for ATS metrics, and stored privately under the user's encrypted profile.
+  - **User Data Rights**: Clear guidelines for requesting data export, profile deletion, or revoking OAuth permissions.
+- **Terms of Service (`/terms` & `/terms-of-service`)**:
+  - **11 Operational Sections**: Establishes binding agreements regarding account eligibility, student vs. interviewer roles, the 50-credit interview / hint usage rules, and non-refundable digital credits.
+  - **Mentor KYC & Conduct Rules**: Strict guidelines prohibiting harassment, impersonation, recording of live sessions without consent, and enforcing bank account name matching.
+  - **80/20 Payout Transparency**: Formalizes the 80% mentor revenue share and 20% platform maintenance fee.
+  - **AI Scoring Disclaimers**: Affirms that AI ratings and ATS scores are educational recommendations and not guaranteed employment offers.
+- **Interactive UI Architecture**: Sticky quick-jump section navigation, active link highlights, breadcrumb back navigation, and dark/light mode responsiveness.
+- **Universal Linking**: Clickable links integrated into all primary and landing footers, authentication dialogs, and navigation drawers.
+
+---
+
+### 11. Dedicated Discovery & Showcase Pages
+- **Interactive Features Hub (`/features`)**: Comprehensive breakdown of the 6 core pillars of HireReady AI (AI Mock Interviews, ATS Resume Scoring, WebRTC Human Mentorship, Dynamic Blind 75 Sheet, Document Study Hub, and Real-Time Analytics) with interactive feature cards and live demo CTAs.
+- **How It Works Guide (`/how-it-works`)**: Step-by-step interactive workflow detailing the candidate journey from resume upload and skill gap analysis to AI mock rounds and 1-on-1 human mentorship sessions.
+- **Transparent Pricing Page (`/pricing`)**: Detailed tier breakdown comparing Free Starter credits against Starter (₹100) and Pro (₹500) packs, complete with Razorpay checkout and FAQ accordion.
 
 ---
 
@@ -336,11 +385,14 @@ AI_POWERED_INTERVIEW_PREP_WEBSITE/
     │   ├── pages/
     │   │   ├── Analytics.tsx       # Comprehensive visual analytics with Recharts
     │   │   ├── Auth.tsx            # Login, registration & Google OAuth modal
+    │   │   ├── Blind75.tsx         # Blind 75 LeetCode sheet with hints & AI guidance
     │   │   ├── Dashboard.tsx       # Main user command center
     │   │   ├── Documents.tsx       # Document repository & upload manager
     │   │   ├── DocumentDetail.tsx  # Document view with interactive AI study tools
+    │   │   ├── FeaturesPage.tsx    # Standalone Features showcase page
     │   │   ├── Flashcards.tsx      # Flashcard study deck with mastery tracking
     │   │   ├── Home.tsx            # Landing page
+    │   │   ├── HowItWorksPage.tsx  # Standalone How It Works workflow guide
     │   │   ├── HumanInterviews.tsx # 1-on-1 slot explorer & booking manager
     │   │   ├── InterviewerCreateSlots.tsx # Slot creation & publishing interface
     │   │   ├── InterviewerDashboard.tsx   # Mentor analytics, bookings & wallet payouts
@@ -350,10 +402,12 @@ AI_POWERED_INTERVIEW_PREP_WEBSITE/
     │   │   ├── InterviewReport.tsx        # Detailed standalone interview report
     │   │   ├── InterviewRoom.tsx          # Real-time WebRTC live video interview room
     │   │   ├── Pricing.tsx                # Credit tiers & Razorpay checkout
+    │   │   ├── PrivacyPolicy.tsx          # Comprehensive 11-section Privacy Policy
     │   │   ├── Profile.tsx                # Candidate profile & role switcher
     │   │   ├── Quizzes.tsx                # Skill assessments & quiz player
     │   │   ├── ResumeAnalysis.tsx         # ATS score gauge, skill match & recommendations
-    │   │   └── Roadmaps.tsx               # Personalized 4-phase learning roadmaps
+    │   │   ├── Roadmaps.tsx               # Personalized 4-phase learning roadmaps
+    │   │   └── TermsOfService.tsx         # Comprehensive 11-section Terms of Service
     │   ├── redux/
     │   │   ├── store.ts            # Redux store configuration
     │   │   └── userSlice.ts        # User authentication & profile slice
@@ -532,13 +586,19 @@ cd HireReady-AI
 - `POST /api/human-interview/interviewer/withdraw` — Request bank or UPI payout.
 - `POST /api/human-interview/ai-assist` — Request real-time contextual AI follow-up questions during live call.
 
-### Smart Documents & AI Hub (`/api/document`, `/api/ai`)
+### Smart Documents, Flashcards, Quizzes & Blind 75 AI (`/api/document`, `/api/ai`)
 - `POST /api/document/upload` — Upload PDF study document and extract text.
 - `GET  /api/document/list` — List all uploaded documents for the user.
 - `POST /api/document/:id/chat` — Contextual AI chat query against the document.
 - `POST /api/document/:id/action` — Perform one-click AI action (`summary`, `explain`, `keywords`, `notes`, `mindmap`).
 - `POST /api/document/:id/flashcards` — Generate study flashcards from document content.
 - `POST /api/document/:id/quiz` — Generate 4-question placement quiz from document content.
+- `GET  /api/ai/flashcards` — Fetch all saved flashcard sets.
+- `DELETE /api/ai/flashcards/:id` — Delete a flashcard set.
+- `GET  /api/ai/quizzes` — Fetch all saved placement quizzes and past scores.
+- `DELETE /api/ai/quizzes/:id` — Delete a saved quiz.
+- `POST /api/ai/quizzes/:id/submit` — Submit quiz attempt and compute scored results.
+- `POST /api/ai/blind75-guidance` — Deduct **50 credits** and generate dynamic AI problem breakdown, pattern hints, edge cases, and code intuition for any Blind 75 LeetCode problem.
 
 ### Payments (`/api/payment`)
 - `POST /api/payment/create-order` — Create Razorpay order for Starter (₹100) or Pro (₹500) credit packs.
@@ -601,6 +661,8 @@ Contributions make the open-source community an amazing place to learn, inspire,
 
 **Developed by Vansh Nagpal**
 - **GitHub**: [@vanshcoder99](https://github.com/vanshcoder99)
+- **LinkedIn**: [Vansh Nagpal](https://www.linkedin.com/in/vansh-nagpal-424a28338)
+- **X (Twitter)**: [@VanshNagpa81393](https://x.com/VanshNagpa81393)
 - **Project Repository**: [https://github.com/vanshcoder99/HireReady-AI](https://github.com/vanshcoder99/HireReady-AI)
 
 Special thanks to the open-source community behind React, Vite, Express, Prisma, Tailwind CSS, and OpenRouter for empowering modern full-stack development.
@@ -610,3 +672,4 @@ Special thanks to the open-source community behind React, Vite, Express, Prisma,
 ## 📄 License
 
 This project is licensed under the **ISC License**. Feel free to use, modify, and distribute this software for educational and personal projects.
+

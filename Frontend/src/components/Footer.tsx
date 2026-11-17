@@ -33,13 +33,31 @@ function Footer() {
             </p>
 
             <div className='flex items-center gap-3 pt-2'>
-              <a href='#' className='w-9 h-9 bg-gray-100 dark:bg-gray-900 hover:bg-emerald-600 dark:hover:bg-emerald-600 text-gray-600 dark:text-gray-400 hover:text-white dark:hover:text-white rounded-xl flex items-center justify-center transition-all duration-300 border border-gray-200 dark:border-gray-800 hover:border-emerald-500'>
+              <a 
+                href='https://x.com/VanshNagpa81393' 
+                target='_blank' 
+                rel='noopener noreferrer'
+                aria-label='X (formerly Twitter)'
+                className='w-9 h-9 bg-gray-100 dark:bg-gray-900 hover:bg-emerald-600 dark:hover:bg-emerald-600 text-gray-600 dark:text-gray-400 hover:text-white dark:hover:text-white rounded-xl flex items-center justify-center transition-all duration-300 border border-gray-200 dark:border-gray-800 hover:border-emerald-500'
+              >
                 <BsTwitterX size={15} />
               </a>
-              <a href='#' className='w-9 h-9 bg-gray-100 dark:bg-gray-900 hover:bg-emerald-600 dark:hover:bg-emerald-600 text-gray-600 dark:text-gray-400 hover:text-white dark:hover:text-white rounded-xl flex items-center justify-center transition-all duration-300 border border-gray-200 dark:border-gray-800 hover:border-emerald-500'>
+              <a 
+                href='https://www.linkedin.com/in/vansh-nagpal-424a28338' 
+                target='_blank' 
+                rel='noopener noreferrer'
+                aria-label='LinkedIn'
+                className='w-9 h-9 bg-gray-100 dark:bg-gray-900 hover:bg-emerald-600 dark:hover:bg-emerald-600 text-gray-600 dark:text-gray-400 hover:text-white dark:hover:text-white rounded-xl flex items-center justify-center transition-all duration-300 border border-gray-200 dark:border-gray-800 hover:border-emerald-500'
+              >
                 <BsLinkedin size={15} />
               </a>
-              <a href='#' className='w-9 h-9 bg-gray-100 dark:bg-gray-900 hover:bg-emerald-600 dark:hover:bg-emerald-600 text-gray-600 dark:text-gray-400 hover:text-white dark:hover:text-white rounded-xl flex items-center justify-center transition-all duration-300 border border-gray-200 dark:border-gray-800 hover:border-emerald-500'>
+              <a 
+                href='https://github.com/vanshcoder99' 
+                target='_blank' 
+                rel='noopener noreferrer'
+                aria-label='GitHub'
+                className='w-9 h-9 bg-gray-100 dark:bg-gray-900 hover:bg-emerald-600 dark:hover:bg-emerald-600 text-gray-600 dark:text-gray-400 hover:text-white dark:hover:text-white rounded-xl flex items-center justify-center transition-all duration-300 border border-gray-200 dark:border-gray-800 hover:border-emerald-500'
+              >
                 <BsGithub size={15} />
               </a>
             </div>
@@ -104,10 +122,20 @@ function Footer() {
             <h4 className='font-bold text-xs tracking-wider uppercase text-emerald-600 dark:text-emerald-400'>Resources</h4>
             <ul className='space-y-2.5 text-sm'>
               <li>
-                <a href='#' className='hover:text-emerald-600 dark:hover:text-white transition'>Privacy Policy</a>
+                <button 
+                  onClick={() => navigate('/privacy')} 
+                  className='hover:text-emerald-600 dark:hover:text-white transition text-left cursor-pointer'
+                >
+                  Privacy Policy
+                </button>
               </li>
               <li>
-                <a href='#' className='hover:text-emerald-600 dark:hover:text-white transition'>Terms of Service</a>
+                <button 
+                  onClick={() => navigate('/terms')} 
+                  className='hover:text-emerald-600 dark:hover:text-white transition text-left cursor-pointer'
+                >
+                  Terms of Service
+                </button>
               </li>
               <li>
                 <div className='inline-flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-xs px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800/60 mt-1'>

@@ -1,7 +1,7 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { BsFileEarmarkText, BsLayers, BsQuestionCircle, BsFileEarmark, BsBarChart } from 'react-icons/bs'
+import { BsFileEarmarkText, BsLayers, BsQuestionCircle, BsFileEarmark, BsBarChart, BsCodeSlash } from 'react-icons/bs'
 
 function QuickAccess({ stats }) {
   const navigate = useNavigate()
@@ -12,7 +12,23 @@ function QuickAccess({ stats }) {
   const hasResume = stats?.hasResume ?? false
   const aiCount = stats?.aiInterviews?.total ?? 0
 
+  const blind75Solved = (() => {
+    try {
+      const stored = localStorage.getItem('hireready_blind75_completed_v1')
+      return stored ? JSON.parse(stored).length : 0
+    } catch {
+      return 0
+    }
+  })()
+
   const accessItems = [
+    {
+      label: 'Blind 75 Sheet',
+      icon: <BsCodeSlash size={20} />,
+      path: '/blind75',
+      color: 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-800/60',
+      count: `${blind75Solved} / 75 solved`,
+    },
     {
       label: 'Documents',
       icon: <BsFileEarmarkText size={20} />,
@@ -57,7 +73,7 @@ function QuickAccess({ stats }) {
       transition={{ duration: 0.4, delay: 0.45 }}
     >
       <h3 className='text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4'>Quick Access</h3>
-      <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5'>
+      <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5'>
         {accessItems.map((item, index) => (
           <motion.button
             key={index}

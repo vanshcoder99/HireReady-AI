@@ -387,3 +387,91 @@ export const submitQuizAttempt = async (req: AuthRequest, res: Response): Promis
     return res.status(500).json({ message: 'Failed to submit quiz attempt.' });
   }
 };
+
+// 13. POST /blind75-guidance
+export const getBlind75Guidance = async (req: AuthRequest, res: Response): Promise<any> => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({
+        message: 'Authentication required. Please log in to use AI Hint Guidance (50 credits required).',
+        statusCode: 401,
+      });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.', statusCode: 404 });
+    }
+
+    if (user.credits < 50) {
+      return res.status(400).json({
+        message: `Not enough credits. Minimum 50 credits required for AI Hint Guidance. You have ${user.credits} credits.`,
+        creditsLeft: user.credits,
+        statusCode: 400,
+      });
+    }
+
+    const { questionTitle, questionNumber, category, difficulty, userQuery, hintNumber } = req.body;
+    if (!questionTitle) {
+      return res.status(400).json({ message: 'Question title is required.' });
+    }
+
+    // Deduct 50 credits for AI chat within the hint section
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { credits: { decrement: 50 } },
+    });
+
+    const systemPrompt = `You are a Principal DSA Mentor and Tech Interview Coach at HireReady.AI. You provide clear, actionable, and structured guidance for technical coding interviews.
+Guidelines:
+- Explain with clarity, bullet points, and conceptual thinking.
+- Emphasize the core algorithmic pattern (e.g., Two Pointers, Monotonic Stack, Sliding Window, DP State Transitions, Tree Recursion, BFS/DFS, Binary Search, Bitwise tricks).
+- Mention Target Time & Space Complexity.
+- Highlight common edge cases or pitfalls that trip up candidates in placement interviews.
+- Do NOT dump full code spoilers immediately; focus on conceptual intuition, optimal approach, and pseudocode.`;
+
+    let userPrompt = `I am practicing Blind 75 LeetCode #${questionNumber || ''}: "${questionTitle}" (${difficulty || 'Medium'}, Category: ${category || 'DSA'}).\n`;
+
+    if (hintNumber === 1) {
+      userPrompt += `Please provide Hint 1: Focus purely on Intuition, Observation, and what pattern to look for without giving away the complete solution. Keep it under 4 sentences.`;
+    } else if (hintNumber === 2) {
+      userPrompt += `Please provide Hint 2: Focus on the specific Data Structure to use, the step-by-step algorithmic technique, expected Time & Space complexity, and 1-2 edge cases to handle.`;
+    } else if (userQuery) {
+      userPrompt += `Candidate's specific question: "${userQuery}". Provide targeted guidance addressing this exact doubt directly.`;
+    } else {
+      userPrompt += `Please provide comprehensive interview guidance:
+1. 💡 Core Intuition & Pattern
+2. ⚙️ Step-by-Step Approach (Brute Force vs Optimal)
+3. ⏱️ Time & Space Complexity Analysis
+4. ⚠️ Critical Edge Cases & Common Pitfalls
+5. 📝 High-Level Pseudocode Walkthrough`;
+    }
+
+    const messages: any[] = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ];
+
+    const guidance = await askAi(messages);
+
+    const io = req.app?.get('io');
+    if (io) {
+      io.to(`user-${userId}`).emit('dashboard-update');
+    }
+
+    return res.status(200).json({
+      success: true,
+      guidance,
+      creditsLeft: updatedUser.credits,
+      creditsDeducted: 50,
+      questionTitle,
+      questionNumber,
+    });
+  } catch (error: any) {
+    console.error('Blind 75 Guidance Error:', error);
+    return res.status(500).json({
+      message: error.message || 'Failed to generate Blind 75 guidance.',
+    });
+  }
+};

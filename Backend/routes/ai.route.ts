@@ -13,6 +13,7 @@ import {
   getQuizzes,
   deleteQuiz,
   submitQuizAttempt,
+  getBlind75Guidance,
 } from '../controllers/ai.controller';
 
 const aiRouter = express.Router();
@@ -32,5 +33,8 @@ aiRouter.delete('/flashcards/:id', isAuth, deleteFlashcardSet);
 aiRouter.get('/quizzes', isAuth, getQuizzes);
 aiRouter.delete('/quizzes/:id', isAuth, deleteQuiz);
 aiRouter.post('/quizzes/:id/submit', isAuth, submitQuizAttempt);
+
+// Blind 75 Interactive AI Guidance (Requires 50 credits)
+aiRouter.post('/blind75-guidance', isAuth, getBlind75Guidance);
 
 export default aiRouter;

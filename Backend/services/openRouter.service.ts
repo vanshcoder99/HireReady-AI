@@ -216,6 +216,20 @@ export const askAi = async (messages: ChatMessage[], retries: number = 1): Promi
     });
   }
 
+  if (lastMessage.toLowerCase().includes('blind') || lastMessage.toLowerCase().includes('leetcode') || lastMessage.toLowerCase().includes('dsa') || lastMessage.toLowerCase().includes('hint')) {
+    return `### 💡 Core Intuition & Pattern
+Analyze the problem properties. Identify whether the problem exhibits overlapping subproblems (Dynamic Programming), sorted order invariants (Two Pointers / Binary Search), frequency counting (Hash Map / Frequency Array), or hierarchical traversal (DFS / BFS).
+
+### ⚙️ Step-by-Step Optimal Approach
+1. **Understand Constraints & Invariants**: Clarify inputs and what data structure enables constant-time verification.
+2. **Eliminate Redundant Work**: Move from a brute-force $O(N^2)$ pairwise comparison to an $O(N)$ single pass using hash lookups or sliding window boundaries.
+3. **Edge Case Checklist**: Guard against empty arrays, boundary indices, duplicates, negative numbers, and single element collections.
+
+### ⏱️ Target Complexity
+- **Time Complexity**: $O(N)$ or $O(N \\log N)$ optimal.
+- **Space Complexity**: $O(1)$ in-place or $O(N)$ auxiliary tracking.`;
+  }
+
   return 'HireReady.AI Assistant: Focus on mastering core Data Structures, System Design fundamentals, and clear communication metrics for your placement interview.';
 };
 

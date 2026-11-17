@@ -46,9 +46,33 @@ function LandingFooter() {
               AI-powered placement preparation platform. Prepare smarter, interview better, get hired faster.
             </p>
             <div className='flex items-center gap-4'>
-              <a href='#' className='hover:text-white transition'><BsTwitterX size={16} /></a>
-              <a href='#' className='hover:text-white transition'><BsLinkedin size={16} /></a>
-              <a href='#' className='hover:text-white transition'><BsGithub size={16} /></a>
+              <a 
+                href='https://x.com/VanshNagpa81393' 
+                target='_blank' 
+                rel='noopener noreferrer'
+                aria-label='X (formerly Twitter)'
+                className='hover:text-white transition'
+              >
+                <BsTwitterX size={16} />
+              </a>
+              <a 
+                href='https://www.linkedin.com/in/vansh-nagpal-424a28338' 
+                target='_blank' 
+                rel='noopener noreferrer'
+                aria-label='LinkedIn'
+                className='hover:text-white transition'
+              >
+                <BsLinkedin size={16} />
+              </a>
+              <a 
+                href='https://github.com/vanshcoder99' 
+                target='_blank' 
+                rel='noopener noreferrer'
+                aria-label='GitHub'
+                className='hover:text-white transition'
+              >
+                <BsGithub size={16} />
+              </a>
             </div>
           </div>
 
@@ -76,8 +100,18 @@ function LandingFooter() {
         <div className='border-t border-gray-800 pt-6 flex flex-col sm:flex-row justify-between items-center gap-4'>
           <p className='text-xs'>© {new Date().getFullYear()} HireReady.AI. All rights reserved.</p>
           <div className='flex items-center gap-6 text-xs'>
-            <a href='#' className='hover:text-white transition'>Privacy Policy</a>
-            <a href='#' className='hover:text-white transition'>Terms of Service</a>
+            <button 
+              onClick={() => navigate('/privacy')} 
+              className='hover:text-white transition cursor-pointer'
+            >
+              Privacy Policy
+            </button>
+            <button 
+              onClick={() => navigate('/terms')} 
+              className='hover:text-white transition cursor-pointer'
+            >
+              Terms of Service
+            </button>
           </div>
         </div>
       </div>

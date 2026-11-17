@@ -132,7 +132,7 @@ function Auth({ isModel = false }) {
 
                 {/* Footer Note */}
                 <p className='text-[11px] text-gray-400 dark:text-gray-400 text-center mt-6 font-normal'>
-                    By continuing, you agree to HireReady.AI's <span className='underline cursor-pointer hover:text-gray-600 dark:hover:text-gray-200'>Terms</span> & <span className='underline cursor-pointer hover:text-gray-600 dark:hover:text-gray-200'>Privacy Policy</span>.
+                    By continuing, you agree to HireReady.AI's <span onClick={() => navigate('/terms')} className='underline cursor-pointer hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors'>Terms</span> & <span onClick={() => navigate('/privacy')} className='underline cursor-pointer hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors'>Privacy Policy</span>.
                 </p>
             </motion.div>
         </div>

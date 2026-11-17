@@ -139,6 +139,14 @@ function Navbar() {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
+              onClick={() => navigate('/blind75')}
+              className='text-sm font-semibold text-gray-800 dark:text-gray-200 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer'
+            >
+              Blind 75
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => navigate('/pricing')}
               className='text-sm font-semibold text-gray-800 dark:text-gray-200 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer'
             >
@@ -345,6 +353,16 @@ function Navbar() {
               className='block w-full text-left text-sm font-medium text-gray-700 dark:text-gray-300 py-2 border-b border-gray-100 dark:border-gray-800'
             >
               How It Works
+            </motion.button>
+            <motion.button
+              whileHover={{ x: 4 }}
+              onClick={() => {
+                navigate('/blind75');
+                setMobileMenu(false);
+              }}
+              className='block w-full text-left text-sm font-medium text-gray-700 dark:text-gray-300 py-2 border-b border-gray-100 dark:border-gray-800'
+            >
+              Blind 75 Sheet
             </motion.button>
             <motion.button
               whileHover={{ x: 4 }}
