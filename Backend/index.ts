@@ -118,6 +118,20 @@ io.on('connection', (socket: CustomSocket) => {
 
     console.log(`Socket ${socket.id} (${name}) joined rooms: ${associatedRooms.join(', ')}`);
 
+    // Clean up any stale/disconnected sockets for this user in the room
+    try {
+      const allSockets = await io.in(primaryRoom).fetchSockets();
+      for (const s of allSockets) {
+        if (s.id !== socket.id && (s as any).userId && String((s as any).userId) === String(userId)) {
+          console.log(`Cleaning up stale socket ${s.id} for user ${userId}`);
+          associatedRooms.forEach((r) => s.leave(r));
+          s.disconnect(true);
+        }
+      }
+    } catch (err) {
+      console.warn('Stale socket cleanup note:', err);
+    }
+
     // Notify other peers in these rooms (Socket.io deduplicates clients in multiple rooms)
     socket.to(associatedRooms).emit('user-connected', {
       socketId: socket.id,
@@ -131,7 +145,7 @@ io.on('connection', (socket: CustomSocket) => {
     try {
       const roomSockets = await io.in(primaryRoom).fetchSockets();
       const existingPeers = roomSockets
-        .filter((s) => s.id !== socket.id)
+        .filter((s) => s.id !== socket.id && (s as any).userId !== userId)
         .map((s) => ({
           socketId: s.id,
           userId: (s as any).userId,

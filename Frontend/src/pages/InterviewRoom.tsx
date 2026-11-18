@@ -42,24 +42,9 @@ const ICE_SERVERS: RTCConfiguration = {
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'stun:stun3.l.google.com:19302' },
-    { urls: 'stun:stun4.l.google.com:19302' },
-    { urls: 'stun:openrelay.metered.ca:80' },
-    {
-      urls: 'turn:openrelay.metered.ca:80',
-      username: 'openrelay',
-      credential: 'openrelay',
-    },
-    {
-      urls: 'turn:openrelay.metered.ca:443',
-      username: 'openrelay',
-      credential: 'openrelay',
-    },
-    {
-      urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-      username: 'openrelay',
-      credential: 'openrelay',
-    },
+    { urls: 'stun:stun.cloudflare.com:3478' },
+    { urls: 'stun:stun.nextcloud.com:443' },
+    { urls: 'stun:stun.voip.blackberry.com:3478' },
   ],
   iceCandidatePoolSize: 10,
 }
@@ -134,6 +119,8 @@ function InterviewRoom() {
   const chatEndRef = useRef<HTMLDivElement | null>(null)
   const typingTimeoutRef = useRef<any>(null)
   const pendingIceCandidatesRef = useRef<RTCIceCandidateInit[]>([])
+  const fallbackOfferTimeoutRef = useRef<any>(null)
+  const receivedOfferRef = useRef<boolean>(false)
 
   const [roomError, setRoomError] = useState<string | null>(null)
 
@@ -332,7 +319,9 @@ function InterviewRoom() {
     // Listen for WebRTC Signaling & Socket Events
     socket.on('user-connected', ({ socketId }: any) => {
       console.log('Peer connected to room:', socketId)
-      setPeerConnected(true)
+      if (fallbackOfferTimeoutRef.current) {
+        clearTimeout(fallbackOfferTimeoutRef.current)
+      }
       createWebRTCOffer(socketId)
     })
 
@@ -340,19 +329,27 @@ function InterviewRoom() {
     socket.on('room-peers', ({ peers }: any) => {
       console.log('Discovered existing room peers:', peers)
       // The peer already in the room initiates the offer on user-connected.
-      // If no offer arrives within 2.5s (fallback), initiate offer as a safety net.
+      // If no offer arrives within 3.5s (safety fallback), initiate offer to the latest peer.
       if (peers && peers.length > 0) {
-        setTimeout(() => {
-          if (!peerRef.current && peers[0]?.socketId) {
-            console.log('Fallback initiating WebRTC offer to existing peer:', peers[0].socketId)
-            createWebRTCOffer(peers[0].socketId)
-          }
-        }, 2500)
+        const livePeer = peers[peers.length - 1]
+        if (livePeer?.socketId) {
+          clearTimeout(fallbackOfferTimeoutRef.current)
+          fallbackOfferTimeoutRef.current = setTimeout(() => {
+            if (!peerRef.current && !receivedOfferRef.current) {
+              console.log('Fallback initiating WebRTC offer to peer:', livePeer.socketId)
+              createWebRTCOffer(livePeer.socketId)
+            }
+          }, 3500)
+        }
       }
     })
 
     socket.on('offer', async ({ socketId, offer }: any) => {
       console.log('Received WebRTC offer from:', socketId)
+      receivedOfferRef.current = true
+      if (fallbackOfferTimeoutRef.current) {
+        clearTimeout(fallbackOfferTimeoutRef.current)
+      }
       await handleWebRTCOffer(socketId, offer)
     })
 
@@ -383,8 +380,14 @@ function InterviewRoom() {
     })
 
     socket.on('user-disconnected', () => {
+      console.log('Peer disconnected from room')
       setPeerConnected(false)
+      receivedOfferRef.current = false
       if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null
+      if (peerRef.current) {
+        try { peerRef.current.close() } catch (e) {}
+        peerRef.current = null
+      }
     })
 
     socket.on('message', (msg: any) => {
@@ -452,6 +455,7 @@ function InterviewRoom() {
       try { peerRef.current.close() } catch (e) {}
     }
 
+    pendingIceCandidatesRef.current = []
     peerRef.current = new RTCPeerConnection(ICE_SERVERS)
     const pc = peerRef.current
 
@@ -461,19 +465,26 @@ function InterviewRoom() {
 
     pc.ontrack = (event) => {
       console.log('WebRTC ontrack received (initiator):', event.track.kind)
+      const stream = (event.streams && event.streams[0]) ? event.streams[0] : null
       if (remoteVideoRef.current) {
-        if (event.streams && event.streams[0]) {
-          remoteVideoRef.current.srcObject = event.streams[0]
+        if (stream) {
+          if (remoteVideoRef.current.srcObject !== stream) {
+            remoteVideoRef.current.srcObject = stream
+            remoteVideoRef.current.setAttribute('playsinline', 'true')
+            remoteVideoRef.current.play().catch((e) => console.log('Remote stream play note:', e))
+          }
         } else {
           let currentStream = remoteVideoRef.current.srcObject as MediaStream
           if (!currentStream) {
             currentStream = new MediaStream()
             remoteVideoRef.current.srcObject = currentStream
           }
-          currentStream.addTrack(event.track)
+          if (!currentStream.getTracks().some((t) => t.id === event.track.id)) {
+            currentStream.addTrack(event.track)
+            remoteVideoRef.current.setAttribute('playsinline', 'true')
+            remoteVideoRef.current.play().catch((e) => console.log('Remote stream play note:', e))
+          }
         }
-        remoteVideoRef.current.setAttribute('playsinline', 'true')
-        remoteVideoRef.current.play().catch((e) => console.log('Remote stream play note:', e))
       }
       setPeerConnected(true)
     }
@@ -493,7 +504,6 @@ function InterviewRoom() {
         setNetworkQuality('Poor')
       } else if (pc.iceConnectionState === 'failed') {
         setNetworkQuality('Disconnected')
-        pc.restartIce?.()
       }
     }
 
@@ -509,7 +519,10 @@ function InterviewRoom() {
       }
     }
 
-    const offer = await pc.createOffer()
+    const offer = await pc.createOffer({
+      offerToReceiveAudio: true,
+      offerToReceiveVideo: true,
+    })
     await pc.setLocalDescription(offer)
     socketRef.current?.emit('offer', { targetId: targetSocketId, offer })
   }
@@ -520,6 +533,7 @@ function InterviewRoom() {
       try { peerRef.current.close() } catch (e) {}
     }
 
+    pendingIceCandidatesRef.current = []
     peerRef.current = new RTCPeerConnection(ICE_SERVERS)
     const pc = peerRef.current
 
@@ -529,19 +543,26 @@ function InterviewRoom() {
 
     pc.ontrack = (event) => {
       console.log('WebRTC ontrack received (receiver):', event.track.kind)
+      const stream = (event.streams && event.streams[0]) ? event.streams[0] : null
       if (remoteVideoRef.current) {
-        if (event.streams && event.streams[0]) {
-          remoteVideoRef.current.srcObject = event.streams[0]
+        if (stream) {
+          if (remoteVideoRef.current.srcObject !== stream) {
+            remoteVideoRef.current.srcObject = stream
+            remoteVideoRef.current.setAttribute('playsinline', 'true')
+            remoteVideoRef.current.play().catch((e) => console.log('Remote stream play note:', e))
+          }
         } else {
           let currentStream = remoteVideoRef.current.srcObject as MediaStream
           if (!currentStream) {
             currentStream = new MediaStream()
             remoteVideoRef.current.srcObject = currentStream
           }
-          currentStream.addTrack(event.track)
+          if (!currentStream.getTracks().some((t) => t.id === event.track.id)) {
+            currentStream.addTrack(event.track)
+            remoteVideoRef.current.setAttribute('playsinline', 'true')
+            remoteVideoRef.current.play().catch((e) => console.log('Remote stream play note:', e))
+          }
         }
-        remoteVideoRef.current.setAttribute('playsinline', 'true')
-        remoteVideoRef.current.play().catch((e) => console.log('Remote stream play note:', e))
       }
       setPeerConnected(true)
     }
@@ -561,7 +582,6 @@ function InterviewRoom() {
         setNetworkQuality('Poor')
       } else if (pc.iceConnectionState === 'failed') {
         setNetworkQuality('Disconnected')
-        pc.restartIce?.()
       }
     }
 
@@ -576,7 +596,10 @@ function InterviewRoom() {
     await pc.setRemoteDescription(new RTCSessionDescription(offer))
     await processPendingIceCandidates(pc)
 
-    const answer = await pc.createAnswer()
+    const answer = await pc.createAnswer({
+      offerToReceiveAudio: true,
+      offerToReceiveVideo: true,
+    })
     await pc.setLocalDescription(answer)
     socketRef.current?.emit('answer', { targetId: targetSocketId, answer })
   }
@@ -1100,7 +1123,9 @@ function InterviewRoom() {
               ref={remoteVideoRef}
               autoPlay
               playsInline
-              className='w-full h-full object-cover rounded-3xl'
+              onLoadedData={() => setPeerConnected(true)}
+              onPlaying={() => setPeerConnected(true)}
+              className={`w-full h-full object-cover rounded-3xl ${!peerConnected ? 'opacity-0' : 'opacity-100 transition-opacity duration-300'}`}
             />
 
             {/* Fallback Display if peer not transmitting */}
