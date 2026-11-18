@@ -858,8 +858,29 @@ export const getBookingDetails = async (req: AuthRequest, res: Response): Promis
     });
     if (!booking) return res.status(404).json({ message: 'Interview session not found.' });
 
+    // Query interview room to check if session is already active and get startTime
+    let roomStatus = 'waiting';
+    let roomStartTime: Date | null = null;
+    try {
+      const roomRec = await prisma.interviewRoom.findFirst({
+        where: {
+          OR: [
+            { roomId: booking.roomId },
+            { roomId: booking.id },
+            { bookingId: booking.id },
+          ],
+        },
+      });
+      if (roomRec) {
+        roomStatus = roomRec.status || 'waiting';
+        roomStartTime = roomRec.startTime;
+      }
+    } catch (e) {}
+
     const formattedBooking = {
       ...booking,
+      roomStatus,
+      roomStartTime,
       user: formatUserResponse(booking.user),
       mentor: formatUserResponse(booking.mentor),
       userId: booking.userId || booking.user?.id,
@@ -1089,12 +1110,27 @@ export const getAiMatchSuggestions = async (req: AuthRequest, res: Response): Pr
   }
 };
 
-// 18. Get Room Messages
+// 18. Get Room Messages (Finds by either Booking UUID or custom roomId)
 export const getRoomMessages = async (req: AuthRequest, res: Response): Promise<any> => {
   try {
-    const roomId = req.params.roomId as string;
+    const param = req.params.roomId as string;
+    const targetRoomIds = new Set<string>();
+    if (param) targetRoomIds.add(param);
+
+    try {
+      const b = await prisma.booking.findFirst({
+        where: {
+          OR: [{ id: param }, { roomId: param }],
+        },
+      });
+      if (b) {
+        if (b.id) targetRoomIds.add(b.id);
+        if (b.roomId) targetRoomIds.add(b.roomId);
+      }
+    } catch (e) {}
+
     const messages = await prisma.interviewMessage.findMany({
-      where: { roomId },
+      where: { roomId: { in: Array.from(targetRoomIds) } },
       orderBy: { createdAt: 'asc' },
     });
     return res.status(200).json(messages);

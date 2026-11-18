@@ -37,11 +37,31 @@ import {
 } from 'react-icons/bs'
 import { ServerUrl } from '../App'
 
-const ICE_SERVERS = {
+const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+    { urls: 'stun:openrelay.metered.ca:80' },
+    {
+      urls: 'turn:openrelay.metered.ca:80',
+      username: 'openrelay',
+      credential: 'openrelay',
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443',
+      username: 'openrelay',
+      credential: 'openrelay',
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+      username: 'openrelay',
+      credential: 'openrelay',
+    },
   ],
+  iceCandidatePoolSize: 10,
 }
 
 function InterviewRoom() {
@@ -172,6 +192,13 @@ function InterviewRoom() {
           axios.get(`${ServerUrl}/api/human-interview/messages/${id}`, { withCredentials: true }),
         ])
         setBooking(bRes.data)
+        if (bRes.data?.roomStatus === 'active') {
+          setInterviewStarted(true)
+          if (bRes.data.roomStartTime) {
+            const elapsed = Math.max(0, Math.floor((Date.now() - new Date(bRes.data.roomStartTime).getTime()) / 1000))
+            setTimerSeconds(elapsed)
+          }
+        }
         setChatMessages(msgRes.data || [])
       } catch (err: any) {
         console.error('Init room error:', err)
@@ -285,15 +312,18 @@ function InterviewRoom() {
       reconnectionDelayMax: 5000,
     })
     const socket = socketRef.current
-    const roomId = booking?.roomId || id
+    const canonicalRoomId = String(id)
 
     // Register user for targeted notifications
     if (currentUserId) {
       socket.emit('register-user', { userId: currentUserId })
     }
 
+    // Join room using the canonical booking URL param to ensure both users match
     socket.emit('join-room', {
-      roomId,
+      roomId: canonicalRoomId,
+      bookingId: canonicalRoomId,
+      legacyRoomId: booking?.roomId,
       userId: currentUserId,
       name: myDisplayName,
       role: isInterviewer ? 'interviewer' : 'learner',
@@ -301,15 +331,33 @@ function InterviewRoom() {
 
     // Listen for WebRTC Signaling & Socket Events
     socket.on('user-connected', ({ socketId }: any) => {
+      console.log('Peer connected to room:', socketId)
       setPeerConnected(true)
       createWebRTCOffer(socketId)
     })
 
+    // Existing peers in the room when newly joined
+    socket.on('room-peers', ({ peers }: any) => {
+      console.log('Discovered existing room peers:', peers)
+      // The peer already in the room initiates the offer on user-connected.
+      // If no offer arrives within 2.5s (fallback), initiate offer as a safety net.
+      if (peers && peers.length > 0) {
+        setTimeout(() => {
+          if (!peerRef.current && peers[0]?.socketId) {
+            console.log('Fallback initiating WebRTC offer to existing peer:', peers[0].socketId)
+            createWebRTCOffer(peers[0].socketId)
+          }
+        }, 2500)
+      }
+    })
+
     socket.on('offer', async ({ socketId, offer }: any) => {
+      console.log('Received WebRTC offer from:', socketId)
       await handleWebRTCOffer(socketId, offer)
     })
 
     socket.on('answer', async ({ answer }: any) => {
+      console.log('Received WebRTC answer')
       if (peerRef.current) {
         try {
           await peerRef.current.setRemoteDescription(new RTCSessionDescription(answer))
@@ -340,7 +388,13 @@ function InterviewRoom() {
     })
 
     socket.on('message', (msg: any) => {
-      setChatMessages((prev) => [...prev, msg])
+      setChatMessages((prev) => {
+        const msgId = msg.id || msg._id
+        if (msgId && prev.some((m) => (m.id || m._id) === msgId)) {
+          return prev
+        }
+        return [...prev, msg]
+      })
       // Increment unread count if user is on mobile or not looking at the chat tab
       if (activeRightTab !== 'chat' || (isMobileDevice && mobileActiveView !== 'tools')) {
         setUnreadChatCount((prev) => prev + 1)
@@ -350,13 +404,32 @@ function InterviewRoom() {
     socket.on('typing', () => setRemoteTyping(true))
     socket.on('stop-typing', () => setRemoteTyping(false))
 
-    socket.on('interview-start', () => setInterviewStarted(true))
-    socket.on('interview-end', () => setInterviewStarted(false))
+    // Real-time Session Synchronization
+    socket.on('session-sync', ({ status, elapsedSeconds }: any) => {
+      console.log('Live session sync received:', status, elapsedSeconds)
+      if (status === 'active') {
+        setInterviewStarted(true)
+        if (typeof elapsedSeconds === 'number') {
+          setTimerSeconds(elapsedSeconds)
+        }
+      }
+    })
+
+    socket.on('interview-start', () => {
+      setInterviewStarted(true)
+      setTimerSeconds(0)
+    })
+
+    socket.on('interview-end', () => {
+      setInterviewStarted(false)
+    })
 
     socket.on('reconnect', () => {
       setNetworkQuality('Reconnected')
       socket.emit('join-room', {
-        roomId,
+        roomId: canonicalRoomId,
+        bookingId: canonicalRoomId,
+        legacyRoomId: booking?.roomId,
         userId: currentUserId,
         name: myDisplayName,
         role: isInterviewer ? 'interviewer' : 'learner',
@@ -387,11 +460,22 @@ function InterviewRoom() {
     }
 
     pc.ontrack = (event) => {
-      if (remoteVideoRef.current && event.streams[0]) {
-        remoteVideoRef.current.srcObject = event.streams[0]
+      console.log('WebRTC ontrack received (initiator):', event.track.kind)
+      if (remoteVideoRef.current) {
+        if (event.streams && event.streams[0]) {
+          remoteVideoRef.current.srcObject = event.streams[0]
+        } else {
+          let currentStream = remoteVideoRef.current.srcObject as MediaStream
+          if (!currentStream) {
+            currentStream = new MediaStream()
+            remoteVideoRef.current.srcObject = currentStream
+          }
+          currentStream.addTrack(event.track)
+        }
         remoteVideoRef.current.setAttribute('playsinline', 'true')
         remoteVideoRef.current.play().catch((e) => console.log('Remote stream play note:', e))
       }
+      setPeerConnected(true)
     }
 
     pc.onicecandidate = (event) => {
@@ -400,7 +484,21 @@ function InterviewRoom() {
       }
     }
 
+    pc.oniceconnectionstatechange = () => {
+      console.log('ICE connection state (initiator):', pc.iceConnectionState)
+      if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+        setPeerConnected(true)
+        setNetworkQuality('Excellent')
+      } else if (pc.iceConnectionState === 'disconnected') {
+        setNetworkQuality('Poor')
+      } else if (pc.iceConnectionState === 'failed') {
+        setNetworkQuality('Disconnected')
+        pc.restartIce?.()
+      }
+    }
+
     pc.onconnectionstatechange = () => {
+      console.log('Peer connection state (initiator):', pc.connectionState)
       if (pc.connectionState === 'connected') {
         setPeerConnected(true)
         setNetworkQuality('Excellent')
@@ -430,11 +528,22 @@ function InterviewRoom() {
     }
 
     pc.ontrack = (event) => {
-      if (remoteVideoRef.current && event.streams[0]) {
-        remoteVideoRef.current.srcObject = event.streams[0]
+      console.log('WebRTC ontrack received (receiver):', event.track.kind)
+      if (remoteVideoRef.current) {
+        if (event.streams && event.streams[0]) {
+          remoteVideoRef.current.srcObject = event.streams[0]
+        } else {
+          let currentStream = remoteVideoRef.current.srcObject as MediaStream
+          if (!currentStream) {
+            currentStream = new MediaStream()
+            remoteVideoRef.current.srcObject = currentStream
+          }
+          currentStream.addTrack(event.track)
+        }
         remoteVideoRef.current.setAttribute('playsinline', 'true')
         remoteVideoRef.current.play().catch((e) => console.log('Remote stream play note:', e))
       }
+      setPeerConnected(true)
     }
 
     pc.onicecandidate = (event) => {
@@ -443,7 +552,21 @@ function InterviewRoom() {
       }
     }
 
+    pc.oniceconnectionstatechange = () => {
+      console.log('ICE connection state (receiver):', pc.iceConnectionState)
+      if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+        setPeerConnected(true)
+        setNetworkQuality('Excellent')
+      } else if (pc.iceConnectionState === 'disconnected') {
+        setNetworkQuality('Poor')
+      } else if (pc.iceConnectionState === 'failed') {
+        setNetworkQuality('Disconnected')
+        pc.restartIce?.()
+      }
+    }
+
     pc.onconnectionstatechange = () => {
+      console.log('Peer connection state (receiver):', pc.connectionState)
       if (pc.connectionState === 'connected') {
         setPeerConnected(true)
         setNetworkQuality('Excellent')
@@ -463,9 +586,11 @@ function InterviewRoom() {
     e.preventDefault()
     if (!chatInput.trim() || !socketRef.current) return
 
-    const roomId = booking?.roomId || id
+    const canonicalRoomId = String(id)
     socketRef.current.emit('message', {
-      roomId,
+      roomId: canonicalRoomId,
+      bookingId: canonicalRoomId,
+      legacyRoomId: booking?.roomId,
       message: chatInput.trim(),
       senderId: currentUserId || null,
       senderName: myDisplayName,
@@ -475,7 +600,7 @@ function InterviewRoom() {
     setChatInput('')
 
     // Stop typing
-    socketRef.current.emit('stop-typing', { roomId, name: myDisplayName })
+    socketRef.current.emit('stop-typing', { roomId: canonicalRoomId, name: myDisplayName })
   }
 
   // Typing indicator
@@ -483,12 +608,12 @@ function InterviewRoom() {
     setChatInput(e.target.value)
     if (!socketRef.current) return
 
-    const roomId = booking?.roomId || id
-    socketRef.current.emit('typing', { roomId, name: myDisplayName })
+    const canonicalRoomId = String(id)
+    socketRef.current.emit('typing', { roomId: canonicalRoomId, name: myDisplayName })
 
     clearTimeout(typingTimeoutRef.current)
     typingTimeoutRef.current = setTimeout(() => {
-      socketRef.current?.emit('stop-typing', { roomId, name: myDisplayName })
+      socketRef.current?.emit('stop-typing', { roomId: canonicalRoomId, name: myDisplayName })
     }, 1500)
   }
 
@@ -499,7 +624,7 @@ function InterviewRoom() {
       localStreamRef.current.getAudioTracks().forEach((t) => (t.enabled = newState))
     }
     if (socketRef.current) {
-      socketRef.current.emit('mic-toggle', { roomId: booking?.roomId || id, enabled: newState })
+      socketRef.current.emit('mic-toggle', { roomId: String(id), enabled: newState })
     }
   }
 
@@ -510,7 +635,7 @@ function InterviewRoom() {
       localStreamRef.current.getVideoTracks().forEach((t) => (t.enabled = newState))
     }
     if (socketRef.current) {
-      socketRef.current.emit('camera-toggle', { roomId: booking?.roomId || id, enabled: newState })
+      socketRef.current.emit('camera-toggle', { roomId: String(id), enabled: newState })
     }
   }
 
@@ -550,7 +675,7 @@ function InterviewRoom() {
 
   // Screen Sharing (with graceful check for mobile / unsupported browsers)
   const handleToggleScreenShare = async () => {
-    const roomId = booking?.roomId || id
+    const canonicalRoomId = String(id)
 
     if (!isScreenSharing) {
       if (!navigator.mediaDevices?.getDisplayMedia) {
@@ -580,7 +705,7 @@ function InterviewRoom() {
         }
 
         setIsScreenSharing(true)
-        socketRef.current?.emit('screen-share-start', { roomId })
+        socketRef.current?.emit('screen-share-start', { roomId: canonicalRoomId })
 
         screenTrack.onended = () => {
           handleStopScreenShare()
@@ -594,7 +719,7 @@ function InterviewRoom() {
   }
 
   const handleStopScreenShare = async () => {
-    const roomId = booking?.roomId || id
+    const canonicalRoomId = String(id)
 
     if (screenStreamRef.current) {
       screenStreamRef.current.getTracks().forEach((t) => t.stop())
@@ -617,7 +742,7 @@ function InterviewRoom() {
     }
 
     setIsScreenSharing(false)
-    socketRef.current?.emit('screen-share-stop', { roomId })
+    socketRef.current?.emit('screen-share-stop', { roomId: canonicalRoomId })
   }
 
   const handleToggleFullscreen = () => {
@@ -629,16 +754,19 @@ function InterviewRoom() {
   }
 
   const handleStartInterviewSession = () => {
+    const canonicalRoomId = String(id)
     setInterviewStarted(true)
+    setTimerSeconds(0)
     if (socketRef.current) {
-      socketRef.current.emit('interview-start', { roomId: booking?.roomId || id, bookingId: id })
+      socketRef.current.emit('interview-start', { roomId: canonicalRoomId, bookingId: canonicalRoomId })
     }
   }
 
   const handleEndInterviewSession = async () => {
+    const canonicalRoomId = String(id)
     setInterviewStarted(false)
     if (socketRef.current) {
-      socketRef.current.emit('interview-end', { roomId: booking?.roomId || id, bookingId: id })
+      socketRef.current.emit('interview-end', { roomId: canonicalRoomId, bookingId: canonicalRoomId })
     }
     try {
       await axios.post(`${ServerUrl}/api/human-interview/session/end/${id}`, {}, { withCredentials: true })
@@ -648,6 +776,7 @@ function InterviewRoom() {
   }
 
   const handleLeaveRoom = () => {
+    const canonicalRoomId = String(id)
     // Stop media tracks
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((t) => t.stop())
@@ -657,7 +786,7 @@ function InterviewRoom() {
     }
     // Leave socket room
     if (socketRef.current) {
-      socketRef.current.emit('leave-room', { roomId: booking?.roomId || id })
+      socketRef.current.emit('leave-room', { roomId: canonicalRoomId })
       socketRef.current.disconnect()
     }
     // Close peer connection
