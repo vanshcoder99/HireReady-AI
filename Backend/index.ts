@@ -73,6 +73,10 @@ interface CustomSocket extends Socket {
   userRole?: string;
 }
 
+const isValidUuid = (str: string): boolean => {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+};
+
 // Helper: Map all equivalent room identifiers (e.g. Booking UUID vs room-xxx-xxx)
 const getAssociatedRoomIds = async (roomId: string, bookingId?: string): Promise<string[]> => {
   const ids = new Set<string>();
@@ -80,10 +84,20 @@ const getAssociatedRoomIds = async (roomId: string, bookingId?: string): Promise
   if (bookingId) ids.add(String(bookingId));
 
   try {
-    const candidates = [
-      ...(roomId ? [{ id: String(roomId) }, { roomId: String(roomId) }] : []),
-      ...(bookingId ? [{ id: String(bookingId) }, { roomId: String(bookingId) }] : []),
-    ];
+    const candidates: any[] = [];
+    if (roomId) {
+      candidates.push({ roomId: String(roomId) });
+      if (isValidUuid(String(roomId))) {
+        candidates.push({ id: String(roomId) });
+      }
+    }
+    if (bookingId) {
+      candidates.push({ roomId: String(bookingId) });
+      if (isValidUuid(String(bookingId))) {
+        candidates.push({ id: String(bookingId) });
+      }
+    }
+
     if (candidates.length > 0) {
       const b = await prisma.booking.findFirst({
         where: { OR: candidates },
@@ -116,21 +130,7 @@ io.on('connection', (socket: CustomSocket) => {
     socket.userName = name;
     socket.userRole = role;
 
-    console.log(`Socket ${socket.id} (${name}) joined rooms: ${associatedRooms.join(', ')}`);
-
-    // Clean up any stale/disconnected sockets for this user in the room
-    try {
-      const allSockets = await io.in(primaryRoom).fetchSockets();
-      for (const s of allSockets) {
-        if (s.id !== socket.id && (s as any).userId && String((s as any).userId) === String(userId)) {
-          console.log(`Cleaning up stale socket ${s.id} for user ${userId}`);
-          associatedRooms.forEach((r) => s.leave(r));
-          s.disconnect(true);
-        }
-      }
-    } catch (err) {
-      console.warn('Stale socket cleanup note:', err);
-    }
+    console.log(`Socket ${socket.id} (${name || 'Anonymous'}) joined rooms: ${associatedRooms.join(', ')}`);
 
     // Notify other peers in these rooms (Socket.io deduplicates clients in multiple rooms)
     socket.to(associatedRooms).emit('user-connected', {
@@ -145,7 +145,7 @@ io.on('connection', (socket: CustomSocket) => {
     try {
       const roomSockets = await io.in(primaryRoom).fetchSockets();
       const existingPeers = roomSockets
-        .filter((s) => s.id !== socket.id && (s as any).userId !== userId)
+        .filter((s) => s.id !== socket.id)
         .map((s) => ({
           socketId: s.id,
           userId: (s as any).userId,
@@ -211,24 +211,30 @@ io.on('connection', (socket: CustomSocket) => {
 
   // 2. WebRTC Signaling: Offer, Answer, ICE Candidate (Direct Socket Relay)
   socket.on('offer', ({ targetId, offer }) => {
-    io.to(targetId).emit('offer', {
-      socketId: socket.id,
-      offer,
-    });
+    if (targetId && offer) {
+      io.to(targetId).emit('offer', {
+        socketId: socket.id,
+        offer,
+      });
+    }
   });
 
   socket.on('answer', ({ targetId, answer }) => {
-    io.to(targetId).emit('answer', {
-      socketId: socket.id,
-      answer,
-    });
+    if (targetId && answer) {
+      io.to(targetId).emit('answer', {
+        socketId: socket.id,
+        answer,
+      });
+    }
   });
 
   socket.on('ice-candidate', ({ targetId, candidate }) => {
-    io.to(targetId).emit('ice-candidate', {
-      socketId: socket.id,
-      candidate,
-    });
+    if (targetId && candidate) {
+      io.to(targetId).emit('ice-candidate', {
+        socketId: socket.id,
+        candidate,
+      });
+    }
   });
 
   // 3. Typing Indicators (Dispatched to all room aliases)
@@ -282,6 +288,19 @@ io.on('connection', (socket: CustomSocket) => {
         data: { status: 'active', startTime: now },
       });
 
+      const uuidCandidate = associatedRooms.find((r) => isValidUuid(r));
+      if (uuidCandidate) {
+        await prisma.booking.update({
+          where: { id: uuidCandidate },
+          data: { status: 'Live' },
+        }).catch(() => {});
+      } else {
+        await prisma.booking.updateMany({
+          where: { roomId: { in: associatedRooms } },
+          data: { status: 'Live' },
+        }).catch(() => {});
+      }
+
       const sysMsg = await prisma.interviewMessage.create({
         data: {
           roomId: primaryRoom,
@@ -311,6 +330,19 @@ io.on('connection', (socket: CustomSocket) => {
         },
         data: { status: 'ended', endTime: new Date() },
       });
+
+      const uuidCandidate = associatedRooms.find((r) => isValidUuid(r));
+      if (uuidCandidate) {
+        await prisma.booking.update({
+          where: { id: uuidCandidate },
+          data: { status: 'Completed' },
+        }).catch(() => {});
+      } else {
+        await prisma.booking.updateMany({
+          where: { roomId: { in: associatedRooms } },
+          data: { status: 'Completed' },
+        }).catch(() => {});
+      }
 
       const sysMsg = await prisma.interviewMessage.create({
         data: {

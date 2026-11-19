@@ -9,6 +9,10 @@ import crypto from 'crypto';
 import { askAi, askAiJson } from '../services/openRouter.service';
 import { formatUserResponse } from './user.controller';
 
+export const isValidUuid = (str: string): boolean => {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+};
+
 export const PLATFORM_COMMISSION_PERCENT = 20;
 
 export const isSessionUpcoming = (dateStr: string, timeStr?: string): boolean => {
@@ -563,28 +567,48 @@ export const bookInterviewSlot = async (req: AuthRequest, res: Response): Promis
 // 6. Start Live Interview Session
 export const startLiveSession = async (req: AuthRequest, res: Response): Promise<any> => {
   try {
-    const bookingId = req.params.id as string;
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
+    const bookingParam = String(req.params.id || '');
+    if (!bookingParam) return res.status(400).json({ message: 'Booking ID is required.' });
+
+    const isUuid = isValidUuid(bookingParam);
+    const booking = await prisma.booking.findFirst({
+      where: isUuid
+        ? { OR: [{ id: bookingParam }, { roomId: bookingParam }] }
+        : { roomId: bookingParam },
       include: {
         user: true,
         mentor: true,
+        slot: true,
       },
     });
     if (!booking) return res.status(404).json({ message: 'Booking session not found.' });
 
+    const userId = req.userId;
+    const isMentor = booking.mentorId === userId || booking.slot?.interviewerId === userId;
+    const isInterviewerRole = req.userRole === 'interviewer';
+    if (!isMentor && !isInterviewerRole) {
+      return res.status(403).json({ message: 'Only the assigned interviewer can start this session.' });
+    }
+
     const updatedBooking = await prisma.booking.update({
-      where: { id: bookingId },
+      where: { id: booking.id },
       data: { status: 'Live' },
       include: {
         user: true,
         mentor: true,
+        slot: true,
       },
     });
 
     try {
       await prisma.interviewRoom.updateMany({
-        where: { bookingId },
+        where: {
+          OR: [
+            { bookingId: booking.id },
+            { roomId: booking.roomId },
+            { roomId: booking.id },
+          ],
+        },
         data: { status: 'active', startTime: new Date() },
       });
     } catch (roomErr) {
@@ -609,9 +633,9 @@ export const startLiveSession = async (req: AuthRequest, res: Response): Promise
     }
 
     return res.status(200).json({ message: 'Interview session is now LIVE!', booking: updatedBooking, roomId: booking.roomId });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Start live session error:', error);
-    return res.status(500).json({ message: 'Failed to start live session.' });
+    return res.status(500).json({ message: error.message || 'Failed to start live session.' });
   }
 };
 
@@ -663,25 +687,51 @@ export const creditInterviewerWalletForCompletedBooking = async (bookingId: stri
 // 7. End Live Interview Session
 export const endLiveSession = async (req: AuthRequest, res: Response): Promise<any> => {
   try {
-    const bookingId = req.params.id as string;
-    const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+    const bookingParam = String(req.params.id || '');
+    if (!bookingParam) return res.status(400).json({ message: 'Booking ID is required.' });
+
+    const isUuid = isValidUuid(bookingParam);
+    const booking = await prisma.booking.findFirst({
+      where: isUuid
+        ? { OR: [{ id: bookingParam }, { roomId: bookingParam }] }
+        : { roomId: bookingParam },
+      include: { slot: true },
+    });
     if (!booking) return res.status(404).json({ message: 'Booking session not found.' });
 
+    const userId = req.userId;
+    const isMentor = booking.mentorId === userId || booking.slot?.interviewerId === userId;
+    const isInterviewerRole = req.userRole === 'interviewer';
+    if (!isMentor && !isInterviewerRole) {
+      return res.status(403).json({ message: 'Only the assigned interviewer can conclude this session.' });
+    }
+
     const updatedBooking = await prisma.booking.update({
-      where: { id: bookingId },
+      where: { id: booking.id },
       data: { status: 'Completed' },
+      include: {
+        user: true,
+        mentor: true,
+        slot: true,
+      },
     });
 
     try {
       await prisma.interviewRoom.updateMany({
-        where: { bookingId },
+        where: {
+          OR: [
+            { bookingId: booking.id },
+            { roomId: booking.roomId },
+            { roomId: booking.id },
+          ],
+        },
         data: { status: 'ended', endTime: new Date() },
       });
     } catch (roomErr) {
       console.error('Room update warning:', roomErr);
     }
 
-    await creditInterviewerWalletForCompletedBooking(bookingId);
+    await creditInterviewerWalletForCompletedBooking(booking.id);
 
     const io = req.app.get('io');
     if (io) {
@@ -689,8 +739,9 @@ export const endLiveSession = async (req: AuthRequest, res: Response): Promise<a
     }
 
     return res.status(200).json({ message: 'Interview session concluded.', booking: updatedBooking });
-  } catch (error) {
-    return res.status(500).json({ message: 'Failed to end session.' });
+  } catch (error: any) {
+    console.error('End session error:', error);
+    return res.status(500).json({ message: error.message || 'Failed to end session.' });
   }
 };
 
@@ -849,12 +900,18 @@ export const getUserBookings = async (req: AuthRequest, res: Response): Promise<
 // 11. Get Booking Details
 export const getBookingDetails = async (req: AuthRequest, res: Response): Promise<any> => {
   try {
-    const bookingId = req.params.id as string;
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
+    const bookingParam = String(req.params.id || '');
+    if (!bookingParam) return res.status(400).json({ message: 'Booking ID is required.' });
+
+    const isUuid = isValidUuid(bookingParam);
+    const booking = await prisma.booking.findFirst({
+      where: isUuid
+        ? { OR: [{ id: bookingParam }, { roomId: bookingParam }] }
+        : { roomId: bookingParam },
       include: {
         user: true,
         mentor: true,
+        slot: true,
       },
     });
     if (!booking) return res.status(404).json({ message: 'Interview session not found.' });
@@ -889,8 +946,9 @@ export const getBookingDetails = async (req: AuthRequest, res: Response): Promis
     };
 
     return res.status(200).json(formattedBooking);
-  } catch (error) {
-    return res.status(500).json({ message: 'Failed to fetch booking details.' });
+  } catch (error: any) {
+    console.error('Get booking details error:', error);
+    return res.status(500).json({ message: error.message || 'Failed to fetch booking details.' });
   }
 };
 
@@ -900,9 +958,12 @@ export const cancelBooking = async (req: AuthRequest, res: Response): Promise<an
     const userId = req.userId;
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
-    const bookingId = req.params.id as string;
+    const bookingParam = String(req.params.id || '');
+    const isUuid = isValidUuid(bookingParam);
     const booking = await prisma.booking.findFirst({
-      where: { id: bookingId, userId },
+      where: isUuid
+        ? { OR: [{ id: bookingParam, userId }, { roomId: bookingParam, userId }] }
+        : { roomId: bookingParam, userId },
     });
     if (!booking) return res.status(404).json({ message: 'Booking not found.' });
 
@@ -930,8 +991,9 @@ export const cancelBooking = async (req: AuthRequest, res: Response): Promise<an
     }
 
     return res.status(200).json({ message: 'Interview booking cancelled.', booking: updatedBooking });
-  } catch (error) {
-    return res.status(500).json({ message: 'Failed to cancel booking.' });
+  } catch (error: any) {
+    console.error('Cancel booking error:', error);
+    return res.status(500).json({ message: error.message || 'Failed to cancel booking.' });
   }
 };
 
@@ -944,15 +1006,30 @@ export const submitFeedback = async (req: AuthRequest, res: Response): Promise<a
       communicationScore,
       problemSolvingScore,
       interviewerFeedback,
+      feedback,
       strengths,
       weaknesses,
       suggestions,
       recommendation,
+      hiringRecommendation,
     } = req.body;
 
-    const bookingId = req.params.id as string;
-    const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+    const bookingParam = String(req.params.id || '');
+    const isUuid = isValidUuid(bookingParam);
+    const booking = await prisma.booking.findFirst({
+      where: isUuid
+        ? { OR: [{ id: bookingParam }, { roomId: bookingParam }] }
+        : { roomId: bookingParam },
+      include: { slot: true },
+    });
     if (!booking) return res.status(404).json({ message: 'Booking not found.' });
+
+    const userId = req.userId;
+    const isMentor = booking.mentorId === userId || booking.slot?.interviewerId === userId;
+    const isInterviewerRole = req.userRole === 'interviewer';
+    if (!isMentor && !isInterviewerRole) {
+      return res.status(403).json({ message: 'Only the assigned interviewer can submit feedback.' });
+    }
 
     const finalScore = Math.round(
       ((Number(technicalScore || 0) + Number(communicationScore || 0) + Number(problemSolvingScore || 0)) / 3) * 10
@@ -966,11 +1043,11 @@ export const submitFeedback = async (req: AuthRequest, res: Response): Promise<a
         communicationScore: Number(communicationScore) || 0,
         problemSolvingScore: Number(problemSolvingScore) || 0,
         finalScore,
-        interviewerFeedback: interviewerFeedback || '',
+        interviewerFeedback: interviewerFeedback || feedback || '',
         strengths: Array.isArray(strengths) ? strengths : [],
         weaknesses: Array.isArray(weaknesses) ? weaknesses : [],
         suggestions: Array.isArray(suggestions) ? suggestions : [],
-        recommendation: recommendation || '',
+        recommendation: recommendation || hiringRecommendation || '',
         status: 'Completed',
       },
     });
@@ -978,8 +1055,9 @@ export const submitFeedback = async (req: AuthRequest, res: Response): Promise<a
     await creditInterviewerWalletForCompletedBooking(booking.id);
 
     return res.status(200).json({ message: 'Feedback submitted successfully.', booking: updatedBooking });
-  } catch (error) {
-    return res.status(500).json({ message: 'Failed to submit feedback.' });
+  } catch (error: any) {
+    console.error('Submit feedback error:', error);
+    return res.status(500).json({ message: error.message || 'Failed to submit feedback.' });
   }
 };
 
@@ -1114,15 +1192,16 @@ export const getAiMatchSuggestions = async (req: AuthRequest, res: Response): Pr
 // 18. Get Room Messages (Finds by either Booking UUID or custom roomId)
 export const getRoomMessages = async (req: AuthRequest, res: Response): Promise<any> => {
   try {
-    const param = req.params.roomId as string;
+    const param = String(req.params.roomId || '');
     const targetRoomIds = new Set<string>();
     if (param) targetRoomIds.add(param);
 
     try {
+      const isUuid = isValidUuid(param);
       const b = await prisma.booking.findFirst({
-        where: {
-          OR: [{ id: param }, { roomId: param }],
-        },
+        where: isUuid
+          ? { OR: [{ id: param }, { roomId: param }] }
+          : { roomId: param },
       });
       if (b) {
         if (b.id) targetRoomIds.add(b.id);
@@ -1135,8 +1214,9 @@ export const getRoomMessages = async (req: AuthRequest, res: Response): Promise<
       orderBy: { createdAt: 'asc' },
     });
     return res.status(200).json(messages);
-  } catch (error) {
-    return res.status(500).json({ message: 'Failed to fetch chat history.' });
+  } catch (error: any) {
+    console.error('Get room messages error:', error);
+    return res.status(500).json({ message: error.message || 'Failed to fetch chat history.' });
   }
 };
 
@@ -1540,39 +1620,9 @@ export const getIceServers = async (req: AuthRequest, res: Response): Promise<an
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
       { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' },
       { urls: 'stun:stun.cloudflare.com:3478' },
-      { urls: 'stun:stun.nextcloud.com:443' },
-      { urls: 'stun:standard.relay.metered.ca:80' },
-      {
-        urls: 'turn:standard.relay.metered.ca:80',
-        username: 'openrelayproject',
-        credential: 'openrelayproject',
-      },
-      {
-        urls: 'turn:standard.relay.metered.ca:443',
-        username: 'openrelayproject',
-        credential: 'openrelayproject',
-      },
-      {
-        urls: 'turn:standard.relay.metered.ca:443?transport=tcp',
-        username: 'openrelayproject',
-        credential: 'openrelayproject',
-      },
-      {
-        urls: 'turn:global.relay.metered.ca:80',
-        username: 'openrelayproject',
-        credential: 'openrelayproject',
-      },
-      {
-        urls: 'turn:global.relay.metered.ca:443',
-        username: 'openrelayproject',
-        credential: 'openrelayproject',
-      },
-      {
-        urls: 'turn:global.relay.metered.ca:443?transport=tcp',
-        username: 'openrelayproject',
-        credential: 'openrelayproject',
-      },
     ];
 
     if (process.env.METERED_API_KEY) {
@@ -1580,7 +1630,7 @@ export const getIceServers = async (req: AuthRequest, res: Response): Promise<an
         const appName = process.env.METERED_APP_NAME || 'hireready';
         const meteredRes = await axios.get(`https://${appName}.metered.ca/api/v1/turn/credentials?apiKey=${process.env.METERED_API_KEY}`, { timeout: 3000 });
         if (Array.isArray(meteredRes.data) && meteredRes.data.length > 0) {
-          return res.status(200).json(meteredRes.data);
+          return res.status(200).json([...defaultServers, ...meteredRes.data]);
         }
       } catch (err) {
         console.warn('Metered dynamic fetch note:', (err as any).message);

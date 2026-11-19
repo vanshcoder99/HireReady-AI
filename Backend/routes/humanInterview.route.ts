@@ -47,12 +47,12 @@ humanInterviewRouter.get('/list', isAuth, getUserBookings);
 humanInterviewRouter.get('/completed', isAuth, getLearnerCompletedInterviews);
 humanInterviewRouter.post('/cancel/:id', isAuth, cancelBooking);
 
-// Live Session Lifecycle Endpoints (Interviewer)
-humanInterviewRouter.post('/session/start/:id', isAuth, requireRole('interviewer'), startLiveSession);
-humanInterviewRouter.post('/session/end/:id', isAuth, requireRole('interviewer'), endLiveSession);
+// Live Session Lifecycle Endpoints (Interviewer or Assigned Mentor)
+humanInterviewRouter.post('/session/start/:id', isAuth, startLiveSession);
+humanInterviewRouter.post('/session/end/:id', isAuth, endLiveSession);
 
-// Feedback (Interviewer submits)
-humanInterviewRouter.post('/feedback/:id', isAuth, requireRole('interviewer'), submitFeedback);
+// Feedback (Interviewer or Assigned Mentor submits)
+humanInterviewRouter.post('/feedback/:id', isAuth, submitFeedback);
 
 // Earnings, Wallet & KYC Routes (Interviewer)
 humanInterviewRouter.get('/interviewer/earnings', isAuth, requireRole('interviewer'), getInterviewerEarnings);

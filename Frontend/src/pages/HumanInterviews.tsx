@@ -123,7 +123,7 @@ function HumanInterviews() {
     try {
       const bookingsRes = await axios.get(`${ServerUrl}/api/human-interview/list`, { withCredentials: true })
       const allBookings = Array.isArray(bookingsRes.data) ? bookingsRes.data : []
-      setBookings(allBookings.filter((b: any) => b.status !== 'Completed' && b.status !== 'Cancelled' && isSlotUpcoming(b.date, b.timeSlot)))
+      setBookings(allBookings.filter((b: any) => b.status !== 'Completed' && b.status !== 'Cancelled' && (b.status === 'Live' || isSlotUpcoming(b.date, b.timeSlot))))
     } catch (error) {
       console.error('Fetch bookings error:', error)
       setBookings([])

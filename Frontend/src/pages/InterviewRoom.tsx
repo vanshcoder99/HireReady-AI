@@ -42,39 +42,9 @@ const DEFAULT_ICE_SERVERS: RTCConfiguration = {
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
     { urls: 'stun:stun.cloudflare.com:3478' },
-    { urls: 'stun:stun.nextcloud.com:443' },
-    { urls: 'stun:standard.relay.metered.ca:80' },
-    {
-      urls: 'turn:standard.relay.metered.ca:80',
-      username: 'openrelayproject',
-      credential: 'openrelayproject',
-    },
-    {
-      urls: 'turn:standard.relay.metered.ca:443',
-      username: 'openrelayproject',
-      credential: 'openrelayproject',
-    },
-    {
-      urls: 'turn:standard.relay.metered.ca:443?transport=tcp',
-      username: 'openrelayproject',
-      credential: 'openrelayproject',
-    },
-    {
-      urls: 'turn:global.relay.metered.ca:80',
-      username: 'openrelayproject',
-      credential: 'openrelayproject',
-    },
-    {
-      urls: 'turn:global.relay.metered.ca:443',
-      username: 'openrelayproject',
-      credential: 'openrelayproject',
-    },
-    {
-      urls: 'turn:global.relay.metered.ca:443?transport=tcp',
-      username: 'openrelayproject',
-      credential: 'openrelayproject',
-    },
   ],
   iceCandidatePoolSize: 10,
 }
@@ -145,6 +115,7 @@ function InterviewRoom() {
   const socketRef = useRef<any>(null)
   const peerRef = useRef<RTCPeerConnection | null>(null)
   const localStreamRef = useRef<MediaStream | null>(null)
+  const remoteStreamRef = useRef<MediaStream | null>(null)
   const screenStreamRef = useRef<MediaStream | null>(null)
   const chatEndRef = useRef<HTMLDivElement | null>(null)
   const typingTimeoutRef = useRef<any>(null)
@@ -152,6 +123,7 @@ function InterviewRoom() {
   const fallbackOfferTimeoutRef = useRef<any>(null)
   const receivedOfferRef = useRef<boolean>(false)
   const iceServersRef = useRef<RTCConfiguration>(DEFAULT_ICE_SERVERS)
+  const [isRemoteAudioMutedByBrowser, setIsRemoteAudioMutedByBrowser] = useState(false)
 
   const [roomError, setRoomError] = useState<string | null>(null)
 
@@ -265,7 +237,7 @@ function InterviewRoom() {
   const processPendingIceCandidates = async (pc: RTCPeerConnection) => {
     while (pendingIceCandidatesRef.current.length > 0) {
       const candidate = pendingIceCandidatesRef.current.shift()
-      if (candidate) {
+      if (candidate && candidate.candidate) {
         try {
           await pc.addIceCandidate(new RTCIceCandidate(candidate))
         } catch (err) {
@@ -274,6 +246,66 @@ function InterviewRoom() {
       }
     }
   }
+
+  // Attach and play remote stream safely, handling browser autoplay policies
+  const attachRemoteStream = useCallback((stream: MediaStream) => {
+    remoteStreamRef.current = stream
+    if (remoteVideoRef.current) {
+      if (remoteVideoRef.current.srcObject !== stream) {
+        remoteVideoRef.current.srcObject = stream
+      }
+      remoteVideoRef.current.setAttribute('playsinline', 'true')
+      remoteVideoRef.current.play().then(() => {
+        setIsRemoteAudioMutedByBrowser(false)
+      }).catch((err) => {
+        console.warn('Remote video unmuted autoplay prevented, playing muted:', err)
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.muted = true
+          setIsRemoteAudioMutedByBrowser(true)
+          remoteVideoRef.current.play().catch((e2) => console.error('Muted autoplay also failed:', e2))
+        }
+      })
+    }
+  }, [])
+
+  // Unmute remote video on user interaction
+  const handleUnmuteRemoteAudio = () => {
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.muted = false
+      remoteVideoRef.current.play().then(() => {
+        setIsRemoteAudioMutedByBrowser(false)
+      }).catch((e) => console.warn('Unmute play error:', e))
+    }
+  }
+
+  // Keep local stream bound to localVideoRef even after layout changes / tab switches
+  useEffect(() => {
+    if (localVideoRef.current && localStreamRef.current) {
+      if (localVideoRef.current.srcObject !== localStreamRef.current) {
+        localVideoRef.current.srcObject = localStreamRef.current
+      }
+      localVideoRef.current.muted = true
+      localVideoRef.current.setAttribute('playsinline', 'true')
+      localVideoRef.current.play().catch(() => {})
+    }
+  }, [inWaitingRoom, mobileActiveView])
+
+  // Keep remote stream bound to remoteVideoRef whenever layout changes or stream updates
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStreamRef.current) {
+      if (remoteVideoRef.current.srcObject !== remoteStreamRef.current) {
+        remoteVideoRef.current.srcObject = remoteStreamRef.current
+      }
+      remoteVideoRef.current.setAttribute('playsinline', 'true')
+      remoteVideoRef.current.play().catch((err) => {
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.muted = true
+          setIsRemoteAudioMutedByBrowser(true)
+          remoteVideoRef.current.play().catch(() => {})
+        }
+      })
+    }
+  }, [peerConnected, mobileActiveView])
 
   // Smart Media Stream Acquisition (with Mobile & Laptop constraints and Audio Fallback)
   const getMediaStream = async (targetFacing: 'user' | 'environment' = 'user') => {
@@ -401,7 +433,7 @@ function InterviewRoom() {
     })
 
     socket.on('ice-candidate', async ({ candidate }: any) => {
-      if (!candidate) return
+      if (!candidate || !candidate.candidate) return
       if (peerRef.current && peerRef.current.remoteDescription && peerRef.current.remoteDescription.type) {
         try {
           await peerRef.current.addIceCandidate(new RTCIceCandidate(candidate))
@@ -419,6 +451,7 @@ function InterviewRoom() {
       setPeerConnected(false)
       receivedOfferRef.current = false
       pendingIceCandidatesRef.current = []
+      remoteStreamRef.current = null
       if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null
       if (peerRef.current) {
         try { peerRef.current.close() } catch (e) {}
@@ -491,40 +524,40 @@ function InterviewRoom() {
       try { peerRef.current.close() } catch (e) {}
     }
 
+    pendingIceCandidatesRef.current = []
     peerRef.current = new RTCPeerConnection(iceServersRef.current)
     const pc = peerRef.current
 
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => pc.addTrack(track, localStreamRef.current!))
+      localStreamRef.current.getTracks().forEach((track) => {
+        const senders = pc.getSenders()
+        if (!senders.some((s) => s.track?.id === track.id)) {
+          pc.addTrack(track, localStreamRef.current!)
+        }
+      })
     }
 
     pc.ontrack = (event) => {
       console.log('WebRTC ontrack received (initiator):', event.track.kind)
-      const stream = (event.streams && event.streams[0]) ? event.streams[0] : null
-      if (remoteVideoRef.current) {
-        if (stream) {
-          if (remoteVideoRef.current.srcObject !== stream) {
-            remoteVideoRef.current.srcObject = stream
-            remoteVideoRef.current.setAttribute('playsinline', 'true')
-            remoteVideoRef.current.play().catch((e) => console.log('Remote stream play note:', e))
-          }
-        } else {
-          let currentStream = remoteVideoRef.current.srcObject as MediaStream
-          if (!currentStream) {
-            currentStream = new MediaStream()
-            remoteVideoRef.current.srcObject = currentStream
-          }
-          if (!currentStream.getTracks().some((t) => t.id === event.track.id)) {
-            currentStream.addTrack(event.track)
-            remoteVideoRef.current.setAttribute('playsinline', 'true')
-            remoteVideoRef.current.play().catch((e) => console.log('Remote stream play note:', e))
-          }
+      let stream = (event.streams && event.streams[0]) ? event.streams[0] : null
+      if (!stream) {
+        if (!remoteStreamRef.current) {
+          remoteStreamRef.current = new MediaStream()
         }
+        if (!remoteStreamRef.current.getTracks().some((t) => t.id === event.track.id)) {
+          remoteStreamRef.current.addTrack(event.track)
+        }
+        stream = remoteStreamRef.current
+      } else {
+        remoteStreamRef.current = stream
       }
+
+      setPeerConnected(true)
+      attachRemoteStream(stream)
     }
 
     pc.onicecandidate = (event) => {
-      if (event.candidate && socketRef.current) {
+      if (event.candidate && event.candidate.candidate && socketRef.current) {
         const candData = event.candidate.toJSON ? event.candidate.toJSON() : {
           candidate: event.candidate.candidate,
           sdpMid: event.candidate.sdpMid,
@@ -544,7 +577,6 @@ function InterviewRoom() {
         setNetworkQuality('Poor')
       } else if (pc.iceConnectionState === 'failed') {
         setNetworkQuality('Disconnected')
-        setPeerConnected(false)
       }
     }
 
@@ -557,16 +589,19 @@ function InterviewRoom() {
         setNetworkQuality('Poor')
       } else if (pc.connectionState === 'failed') {
         setNetworkQuality('Disconnected')
-        setPeerConnected(false)
       }
     }
 
-    const offer = await pc.createOffer({
-      offerToReceiveAudio: true,
-      offerToReceiveVideo: true,
-    })
-    await pc.setLocalDescription(offer)
-    socketRef.current?.emit('offer', { targetId: targetSocketId, offer })
+    try {
+      const offer = await pc.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true,
+      })
+      await pc.setLocalDescription(offer)
+      socketRef.current?.emit('offer', { targetId: targetSocketId, offer })
+    } catch (err) {
+      console.error('Create offer error:', err)
+    }
   }
 
   // WebRTC Peer Connection - Receiver
@@ -575,40 +610,40 @@ function InterviewRoom() {
       try { peerRef.current.close() } catch (e) {}
     }
 
+    pendingIceCandidatesRef.current = []
     peerRef.current = new RTCPeerConnection(iceServersRef.current)
     const pc = peerRef.current
 
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => pc.addTrack(track, localStreamRef.current!))
+      localStreamRef.current.getTracks().forEach((track) => {
+        const senders = pc.getSenders()
+        if (!senders.some((s) => s.track?.id === track.id)) {
+          pc.addTrack(track, localStreamRef.current!)
+        }
+      })
     }
 
     pc.ontrack = (event) => {
       console.log('WebRTC ontrack received (receiver):', event.track.kind)
-      const stream = (event.streams && event.streams[0]) ? event.streams[0] : null
-      if (remoteVideoRef.current) {
-        if (stream) {
-          if (remoteVideoRef.current.srcObject !== stream) {
-            remoteVideoRef.current.srcObject = stream
-            remoteVideoRef.current.setAttribute('playsinline', 'true')
-            remoteVideoRef.current.play().catch((e) => console.log('Remote stream play note:', e))
-          }
-        } else {
-          let currentStream = remoteVideoRef.current.srcObject as MediaStream
-          if (!currentStream) {
-            currentStream = new MediaStream()
-            remoteVideoRef.current.srcObject = currentStream
-          }
-          if (!currentStream.getTracks().some((t) => t.id === event.track.id)) {
-            currentStream.addTrack(event.track)
-            remoteVideoRef.current.setAttribute('playsinline', 'true')
-            remoteVideoRef.current.play().catch((e) => console.log('Remote stream play note:', e))
-          }
+      let stream = (event.streams && event.streams[0]) ? event.streams[0] : null
+      if (!stream) {
+        if (!remoteStreamRef.current) {
+          remoteStreamRef.current = new MediaStream()
         }
+        if (!remoteStreamRef.current.getTracks().some((t) => t.id === event.track.id)) {
+          remoteStreamRef.current.addTrack(event.track)
+        }
+        stream = remoteStreamRef.current
+      } else {
+        remoteStreamRef.current = stream
       }
+
+      setPeerConnected(true)
+      attachRemoteStream(stream)
     }
 
     pc.onicecandidate = (event) => {
-      if (event.candidate && socketRef.current) {
+      if (event.candidate && event.candidate.candidate && socketRef.current) {
         const candData = event.candidate.toJSON ? event.candidate.toJSON() : {
           candidate: event.candidate.candidate,
           sdpMid: event.candidate.sdpMid,
@@ -628,7 +663,6 @@ function InterviewRoom() {
         setNetworkQuality('Poor')
       } else if (pc.iceConnectionState === 'failed') {
         setNetworkQuality('Disconnected')
-        setPeerConnected(false)
       }
     }
 
@@ -641,19 +675,22 @@ function InterviewRoom() {
         setNetworkQuality('Poor')
       } else if (pc.connectionState === 'failed') {
         setNetworkQuality('Disconnected')
-        setPeerConnected(false)
       }
     }
 
-    await pc.setRemoteDescription(new RTCSessionDescription(offer))
-    await processPendingIceCandidates(pc)
+    try {
+      await pc.setRemoteDescription(new RTCSessionDescription(offer))
+      await processPendingIceCandidates(pc)
 
-    const answer = await pc.createAnswer({
-      offerToReceiveAudio: true,
-      offerToReceiveVideo: true,
-    })
-    await pc.setLocalDescription(answer)
-    socketRef.current?.emit('answer', { targetId: targetSocketId, answer })
+      const answer = await pc.createAnswer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true,
+      })
+      await pc.setLocalDescription(answer)
+      socketRef.current?.emit('answer', { targetId: targetSocketId, answer })
+    } catch (err) {
+      console.error('Handle offer error:', err)
+    }
   }
 
   // Socket Live Chat Send
@@ -828,12 +865,17 @@ function InterviewRoom() {
     }
   }
 
-  const handleStartInterviewSession = () => {
+  const handleStartInterviewSession = async () => {
     const canonicalRoomId = String(id)
     setInterviewStarted(true)
     setTimerSeconds(0)
     if (socketRef.current) {
       socketRef.current.emit('interview-start', { roomId: canonicalRoomId, bookingId: canonicalRoomId })
+    }
+    try {
+      await axios.post(`${ServerUrl}/api/human-interview/session/start/${id}`, {}, { withCredentials: true })
+    } catch (err: any) {
+      console.warn('Start session API note:', err.response?.data?.message || err.message)
     }
   }
 
@@ -845,8 +887,8 @@ function InterviewRoom() {
     }
     try {
       await axios.post(`${ServerUrl}/api/human-interview/session/end/${id}`, {}, { withCredentials: true })
-    } catch (err) {
-      console.error('End session API error:', err)
+    } catch (err: any) {
+      console.warn('End session API note:', err.response?.data?.message || err.message)
     }
   }
 
@@ -879,7 +921,7 @@ function InterviewRoom() {
         `${ServerUrl}/api/human-interview/ai-assist`,
         {
           transcriptSnippet: chatMessages.map((m) => `${m.senderName}: ${m.message}`).join('\n'),
-          candidateRole: booking?.slotId?.role || 'Software Engineer',
+          candidateRole: booking?.slot?.role || booking?.slotId?.role || 'Software Engineer',
         },
         { withCredentials: true }
       )
@@ -917,10 +959,12 @@ function InterviewRoom() {
           technicalScore: Number(techScore),
           communicationScore: Number(commScore),
           problemSolvingScore: Number(psScore),
+          interviewerFeedback: feedbackText,
           feedback: feedbackText,
           strengths,
           weaknesses,
           suggestions,
+          recommendation,
           hiringRecommendation: recommendation,
         },
         { withCredentials: true }
@@ -1175,10 +1219,24 @@ function InterviewRoom() {
               ref={remoteVideoRef}
               autoPlay
               playsInline
+              onClick={handleUnmuteRemoteAudio}
               onLoadedData={() => setPeerConnected(true)}
               onPlaying={() => setPeerConnected(true)}
-              className={`w-full h-full object-cover rounded-3xl ${!peerConnected ? 'opacity-0' : 'opacity-100 transition-opacity duration-300'}`}
+              className={`w-full h-full object-cover rounded-3xl ${!peerConnected ? 'hidden' : 'block cursor-pointer'}`}
             />
+
+            {/* Audio Muted Overlay Notification if browser prevented unmuted playback */}
+            {peerConnected && isRemoteAudioMutedByBrowser && (
+              <div className='absolute top-4 left-4 z-30'>
+                <button
+                  onClick={handleUnmuteRemoteAudio}
+                  className='bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 cursor-pointer animate-pulse'
+                >
+                  <BsMicMute size={14} />
+                  <span>Audio Muted by Browser — Click to Unmute</span>
+                </button>
+              </div>
+            )}
 
             {/* Fallback Display if peer not transmitting */}
             {!peerConnected && (
