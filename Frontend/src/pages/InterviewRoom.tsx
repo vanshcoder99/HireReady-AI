@@ -37,14 +37,44 @@ import {
 } from 'react-icons/bs'
 import { ServerUrl } from '../App'
 
-const ICE_SERVERS: RTCConfiguration = {
+const DEFAULT_ICE_SERVERS: RTCConfiguration = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
     { urls: 'stun:stun.cloudflare.com:3478' },
     { urls: 'stun:stun.nextcloud.com:443' },
-    { urls: 'stun:stun.voip.blackberry.com:3478' },
+    { urls: 'stun:standard.relay.metered.ca:80' },
+    {
+      urls: 'turn:standard.relay.metered.ca:80',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
+    {
+      urls: 'turn:standard.relay.metered.ca:443',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
+    {
+      urls: 'turn:standard.relay.metered.ca:443?transport=tcp',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
+    {
+      urls: 'turn:global.relay.metered.ca:80',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
+    {
+      urls: 'turn:global.relay.metered.ca:443',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
+    {
+      urls: 'turn:global.relay.metered.ca:443?transport=tcp',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
   ],
   iceCandidatePoolSize: 10,
 }
@@ -121,6 +151,7 @@ function InterviewRoom() {
   const pendingIceCandidatesRef = useRef<RTCIceCandidateInit[]>([])
   const fallbackOfferTimeoutRef = useRef<any>(null)
   const receivedOfferRef = useRef<boolean>(false)
+  const iceServersRef = useRef<RTCConfiguration>(DEFAULT_ICE_SERVERS)
 
   const [roomError, setRoomError] = useState<string | null>(null)
 
@@ -174,10 +205,14 @@ function InterviewRoom() {
       try {
         setLoading(true)
         setRoomError(null)
-        const [bRes, msgRes] = await Promise.all([
+        const [bRes, msgRes, iceRes] = await Promise.all([
           axios.get(`${ServerUrl}/api/human-interview/booking/${id}`, { withCredentials: true }),
           axios.get(`${ServerUrl}/api/human-interview/messages/${id}`, { withCredentials: true }),
+          axios.get(`${ServerUrl}/api/human-interview/ice-servers`, { withCredentials: true }).catch(() => null),
         ])
+        if (iceRes?.data && Array.isArray(iceRes.data) && iceRes.data.length > 0) {
+          iceServersRef.current = { iceServers: iceRes.data, iceCandidatePoolSize: 10 }
+        }
         setBooking(bRes.data)
         if (bRes.data?.roomStatus === 'active') {
           setInterviewStarted(true)
@@ -383,6 +418,7 @@ function InterviewRoom() {
       console.log('Peer disconnected from room')
       setPeerConnected(false)
       receivedOfferRef.current = false
+      pendingIceCandidatesRef.current = []
       if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null
       if (peerRef.current) {
         try { peerRef.current.close() } catch (e) {}
@@ -455,8 +491,7 @@ function InterviewRoom() {
       try { peerRef.current.close() } catch (e) {}
     }
 
-    pendingIceCandidatesRef.current = []
-    peerRef.current = new RTCPeerConnection(ICE_SERVERS)
+    peerRef.current = new RTCPeerConnection(iceServersRef.current)
     const pc = peerRef.current
 
     if (localStreamRef.current) {
@@ -486,12 +521,17 @@ function InterviewRoom() {
           }
         }
       }
-      setPeerConnected(true)
     }
 
     pc.onicecandidate = (event) => {
       if (event.candidate && socketRef.current) {
-        socketRef.current.emit('ice-candidate', { targetId: targetSocketId, candidate: event.candidate })
+        const candData = event.candidate.toJSON ? event.candidate.toJSON() : {
+          candidate: event.candidate.candidate,
+          sdpMid: event.candidate.sdpMid,
+          sdpMLineIndex: event.candidate.sdpMLineIndex,
+          usernameFragment: event.candidate.usernameFragment,
+        }
+        socketRef.current.emit('ice-candidate', { targetId: targetSocketId, candidate: candData })
       }
     }
 
@@ -504,6 +544,7 @@ function InterviewRoom() {
         setNetworkQuality('Poor')
       } else if (pc.iceConnectionState === 'failed') {
         setNetworkQuality('Disconnected')
+        setPeerConnected(false)
       }
     }
 
@@ -516,6 +557,7 @@ function InterviewRoom() {
         setNetworkQuality('Poor')
       } else if (pc.connectionState === 'failed') {
         setNetworkQuality('Disconnected')
+        setPeerConnected(false)
       }
     }
 
@@ -533,8 +575,7 @@ function InterviewRoom() {
       try { peerRef.current.close() } catch (e) {}
     }
 
-    pendingIceCandidatesRef.current = []
-    peerRef.current = new RTCPeerConnection(ICE_SERVERS)
+    peerRef.current = new RTCPeerConnection(iceServersRef.current)
     const pc = peerRef.current
 
     if (localStreamRef.current) {
@@ -564,12 +605,17 @@ function InterviewRoom() {
           }
         }
       }
-      setPeerConnected(true)
     }
 
     pc.onicecandidate = (event) => {
       if (event.candidate && socketRef.current) {
-        socketRef.current.emit('ice-candidate', { targetId: targetSocketId, candidate: event.candidate })
+        const candData = event.candidate.toJSON ? event.candidate.toJSON() : {
+          candidate: event.candidate.candidate,
+          sdpMid: event.candidate.sdpMid,
+          sdpMLineIndex: event.candidate.sdpMLineIndex,
+          usernameFragment: event.candidate.usernameFragment,
+        }
+        socketRef.current.emit('ice-candidate', { targetId: targetSocketId, candidate: candData })
       }
     }
 
@@ -582,6 +628,7 @@ function InterviewRoom() {
         setNetworkQuality('Poor')
       } else if (pc.iceConnectionState === 'failed') {
         setNetworkQuality('Disconnected')
+        setPeerConnected(false)
       }
     }
 
@@ -590,6 +637,11 @@ function InterviewRoom() {
       if (pc.connectionState === 'connected') {
         setPeerConnected(true)
         setNetworkQuality('Excellent')
+      } else if (pc.connectionState === 'disconnected') {
+        setNetworkQuality('Poor')
+      } else if (pc.connectionState === 'failed') {
+        setNetworkQuality('Disconnected')
+        setPeerConnected(false)
       }
     }
 

@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import axios from 'axios';
 import { AuthRequest } from '../middlewares/isAuth';
 import fs from 'fs';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
@@ -1529,6 +1530,69 @@ export const requestWithdrawal = async (req: AuthRequest, res: Response): Promis
   } catch (error: any) {
     console.error('Request withdrawal error:', error);
     return res.status(500).json({ message: error.message || 'Failed to submit withdrawal request.' });
+  }
+};
+
+// 26. Get ICE Servers (STUN & TURN for WebRTC NAT Traversal)
+export const getIceServers = async (req: AuthRequest, res: Response): Promise<any> => {
+  try {
+    const defaultServers = [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun.cloudflare.com:3478' },
+      { urls: 'stun:stun.nextcloud.com:443' },
+      { urls: 'stun:standard.relay.metered.ca:80' },
+      {
+        urls: 'turn:standard.relay.metered.ca:80',
+        username: 'openrelayproject',
+        credential: 'openrelayproject',
+      },
+      {
+        urls: 'turn:standard.relay.metered.ca:443',
+        username: 'openrelayproject',
+        credential: 'openrelayproject',
+      },
+      {
+        urls: 'turn:standard.relay.metered.ca:443?transport=tcp',
+        username: 'openrelayproject',
+        credential: 'openrelayproject',
+      },
+      {
+        urls: 'turn:global.relay.metered.ca:80',
+        username: 'openrelayproject',
+        credential: 'openrelayproject',
+      },
+      {
+        urls: 'turn:global.relay.metered.ca:443',
+        username: 'openrelayproject',
+        credential: 'openrelayproject',
+      },
+      {
+        urls: 'turn:global.relay.metered.ca:443?transport=tcp',
+        username: 'openrelayproject',
+        credential: 'openrelayproject',
+      },
+    ];
+
+    if (process.env.METERED_API_KEY) {
+      try {
+        const appName = process.env.METERED_APP_NAME || 'hireready';
+        const meteredRes = await axios.get(`https://${appName}.metered.ca/api/v1/turn/credentials?apiKey=${process.env.METERED_API_KEY}`, { timeout: 3000 });
+        if (Array.isArray(meteredRes.data) && meteredRes.data.length > 0) {
+          return res.status(200).json(meteredRes.data);
+        }
+      } catch (err) {
+        console.warn('Metered dynamic fetch note:', (err as any).message);
+      }
+    }
+
+    return res.status(200).json(defaultServers);
+  } catch (err) {
+    return res.status(200).json([
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun.cloudflare.com:3478' },
+    ]);
   }
 };
 

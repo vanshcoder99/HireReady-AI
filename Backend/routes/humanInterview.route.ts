@@ -28,6 +28,7 @@ import {
   getInterviewerProfile,
   getInterviewerWallet,
   requestWithdrawal,
+  getIceServers,
 } from '../controllers/humanInterview.controller';
 
 const humanInterviewRouter = express.Router();
@@ -78,6 +79,9 @@ humanInterviewRouter.get('/messages/:roomId', isAuth, getRoomMessages);
 humanInterviewRouter.post('/ai-assist', isAuth, getAiCoInterviewerAssist);
 humanInterviewRouter.post('/ai-summary', isAuth, generateFinalAiInterviewSummary);
 humanInterviewRouter.post('/suggestions', isAuth, getAiMatchSuggestions);
+
+// WebRTC ICE / TURN Servers
+humanInterviewRouter.get('/ice-servers', isAuth, getIceServers);
 
 // Booking Detail — MUST be last (catch-all :id pattern)
 humanInterviewRouter.get('/booking/:id', isAuth, getBookingDetails);
