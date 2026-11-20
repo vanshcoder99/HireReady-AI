@@ -18,13 +18,14 @@ function AuthModel({ onClose }: AuthModelProps) {
   }, [userData, onClose]);
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-      <div className="relative w-full max-w-md">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-6 overflow-y-auto">
+      <div className="relative w-full max-w-md my-auto">
         <button
           onClick={onClose}
-          className="absolute top-7 right-6 z-20 text-gray-400 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white cursor-pointer p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          aria-label="Close authentication modal"
+          className="absolute top-4 right-4 z-30 text-gray-400 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white cursor-pointer p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors shadow-xs"
         >
-          <FaTimes size={16} />
+          <FaTimes size={15} />
         </button>
         <Auth isModel={true} />
       </div>

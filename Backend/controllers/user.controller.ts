@@ -1,11 +1,15 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middlewares/isAuth';
 import { prisma } from '../config/connectDb';
+import { hashPassword, verifyPassword } from '../utils/password';
 
 export const formatUserResponse = (user: any) => {
   if (!user) return null;
+  const { password, ...safeUser } = user;
   return {
-    ...user,
+    ...safeUser,
+    username: user.username || '',
+    hasPassword: Boolean(user.password),
     interviewerProfile: {
       title: user.interviewerTitle || 'Senior Tech Interviewer',
       company: user.interviewerCompany || 'Tech Enterprise',
@@ -570,6 +574,68 @@ export const getUserProfile = async (req: AuthRequest, res: Response): Promise<a
     return res.status(500).json({
       success: false,
       message: `Failed to fetch profile: ${error.message}`,
+    });
+  }
+};
+
+export const changePassword = async (req: AuthRequest, res: Response): Promise<any> => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const { oldPassword, newPassword } = req.body;
+
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 6 characters long',
+      });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // If user has an existing password, verify oldPassword
+    if (user.password) {
+      if (!oldPassword) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please provide your current/older password',
+        });
+      }
+
+      const isMatch = verifyPassword(oldPassword, user.password);
+      if (!isMatch) {
+        return res.status(400).json({
+          success: false,
+          message: 'Current password does not match',
+        });
+      }
+    }
+
+    const hashedPassword = hashPassword(newPassword);
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Password updated successfully',
+      user: formatUserResponse(updatedUser),
+    });
+  } catch (error: any) {
+    console.error('Change password error:', error);
+    return res.status(500).json({
+      success: false,
+      message: `Failed to change password: ${error.message || error}`,
     });
   }
 };

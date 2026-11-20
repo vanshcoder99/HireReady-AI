@@ -6,6 +6,7 @@ import {
   switchUserRole,
   updateInterviewerProfile,
   getUserProfile,
+  changePassword,
 } from '../controllers/user.controller';
 
 const userRouter = express.Router();
@@ -15,6 +16,7 @@ userRouter.get('/dashboard-summary', isAuth, getDashboardSummary);
 userRouter.get('/profile', isAuth, getUserProfile);
 userRouter.post('/role', isAuth, switchUserRole);
 userRouter.post('/interviewer-profile', isAuth, updateInterviewerProfile);
+userRouter.post('/change-password', isAuth, changePassword);
 
 export default userRouter;
 

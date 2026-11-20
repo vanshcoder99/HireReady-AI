@@ -22,7 +22,12 @@ import {
   BsTelephone,
   BsCalendarDate,
   BsCreditCard2Front,
-  BsPatchCheckFill
+  BsPatchCheckFill,
+  BsLock,
+  BsEye,
+  BsEyeSlash,
+  BsShieldLock,
+  BsAt,
 } from 'react-icons/bs'
 import { ServerUrl } from '../App'
 import { setUserData } from '../redux/userSlice'
@@ -88,6 +93,57 @@ function InterviewerProfile() {
   const [submittingKYC, setSubmittingKYC] = useState(false)
   const [savedSuccess, setSavedSuccess] = useState('')
   const [verifyError, setVerifyError] = useState('')
+
+  // Password Change State
+  const [oldPassword, setOldPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmNewPassword, setConfirmNewPassword] = useState('')
+  const [showOldPassword, setShowOldPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false)
+  const [passwordLoading, setPasswordLoading] = useState(false)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null)
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPasswordError(null)
+    setPasswordSuccess(null)
+
+    if (user.hasPassword !== false && !oldPassword) {
+      setPasswordError('Please enter your current / older password')
+      return
+    }
+    if (newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters long')
+      return
+    }
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError('New passwords do not match')
+      return
+    }
+
+    setPasswordLoading(true)
+    try {
+      const res = await axios.post(
+        `${ServerUrl}/api/user/change-password`,
+        { oldPassword: oldPassword || undefined, newPassword },
+        { withCredentials: true }
+      )
+      setPasswordSuccess(res.data?.message || 'Password updated successfully!')
+      setOldPassword('')
+      setNewPassword('')
+      setConfirmNewPassword('')
+      if (res.data?.user) {
+        dispatch(setUserData(res.data.user))
+      }
+    } catch (err: any) {
+      console.error('Password change error:', err)
+      setPasswordError(err.response?.data?.message || 'Failed to change password')
+    } finally {
+      setPasswordLoading(false)
+    }
+  }
 
   const isVerified = verification.status === 'verified' && profile.isApproved
   const isRejected = verification.status === 'rejected'
@@ -269,6 +325,19 @@ function InterviewerProfile() {
               </div>
 
               <div>
+                <label className='block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5'>Username</label>
+                <div className='relative'>
+                  <BsAt className='absolute left-3.5 top-3.5 text-gray-400 pointer-events-none' size={16} />
+                  <input
+                    type='text'
+                    value={user?.username || 'user'}
+                    disabled
+                    className='w-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl pl-9 pr-3.5 py-2.5 text-sm font-semibold text-gray-500 font-mono'
+                  />
+                </div>
+              </div>
+
+              <div>
                 <label className='block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5'>Email Address</label>
                 <input
                   type='email'
@@ -305,6 +374,106 @@ function InterviewerProfile() {
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Change Password Card */}
+            <div className='bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/80 rounded-2xl p-4 sm:p-5 space-y-4 mt-4'>
+              <div className='flex items-center gap-2'>
+                <BsShieldLock size={16} className='text-emerald-500' />
+                <h3 className='text-xs sm:text-sm font-bold text-gray-900 dark:text-white'>Security & Password Management</h3>
+              </div>
+
+              {passwordSuccess && (
+                <div className='p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs'>
+                  {passwordSuccess}
+                </div>
+              )}
+
+              {passwordError && (
+                <div className='p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs'>
+                  {passwordError}
+                </div>
+              )}
+
+              <form onSubmit={handleChangePassword} className='space-y-3'>
+                {user.hasPassword !== false && (
+                  <div>
+                    <label className='block text-[11px] font-bold text-gray-600 dark:text-gray-300 mb-1'>Older / Current Password</label>
+                    <div className='relative'>
+                      <BsLock className='absolute left-3 top-3 text-gray-400' size={14} />
+                      <input
+                        type={showOldPassword ? 'text' : 'password'}
+                        value={oldPassword}
+                        onChange={(e) => setOldPassword(e.target.value)}
+                        placeholder='Enter current password'
+                        required={user.hasPassword !== false}
+                        className='w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl pl-8 pr-9 py-2 text-xs font-semibold focus:outline-none focus:border-emerald-500'
+                      />
+                      <button
+                        type='button'
+                        onClick={() => setShowOldPassword(!showOldPassword)}
+                        className='absolute right-3 top-2.5 text-gray-400 cursor-pointer'
+                      >
+                        {showOldPassword ? <BsEyeSlash size={14} /> : <BsEye size={14} />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className='grid sm:grid-cols-2 gap-3'>
+                  <div>
+                    <label className='block text-[11px] font-bold text-gray-600 dark:text-gray-300 mb-1'>New Password</label>
+                    <div className='relative'>
+                      <BsLock className='absolute left-3 top-3 text-gray-400' size={14} />
+                      <input
+                        type={showNewPassword ? 'text' : 'password'}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder='Min 6 characters'
+                        required
+                        className='w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl pl-8 pr-9 py-2 text-xs font-semibold focus:outline-none focus:border-emerald-500'
+                      />
+                      <button
+                        type='button'
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className='absolute right-3 top-2.5 text-gray-400 cursor-pointer'
+                      >
+                        {showNewPassword ? <BsEyeSlash size={14} /> : <BsEye size={14} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className='block text-[11px] font-bold text-gray-600 dark:text-gray-300 mb-1'>Confirm New Password</label>
+                    <div className='relative'>
+                      <BsShieldLock className='absolute left-3 top-3 text-gray-400' size={14} />
+                      <input
+                        type={showConfirmNewPassword ? 'text' : 'password'}
+                        value={confirmNewPassword}
+                        onChange={(e) => setConfirmNewPassword(e.target.value)}
+                        placeholder='Re-enter new password'
+                        required
+                        className='w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl pl-8 pr-9 py-2 text-xs font-semibold focus:outline-none focus:border-emerald-500'
+                      />
+                      <button
+                        type='button'
+                        onClick={() => setShowConfirmNewPassword(!showConfirmNewPassword)}
+                        className='absolute right-3 top-2.5 text-gray-400 cursor-pointer'
+                      >
+                        {showConfirmNewPassword ? <BsEyeSlash size={14} /> : <BsEye size={14} />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type='submit'
+                  disabled={passwordLoading}
+                  className='bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer disabled:opacity-60'
+                >
+                  {passwordLoading ? 'Updating...' : user.hasPassword ? 'Update Password' : 'Set Password'}
+                </button>
+              </form>
             </div>
 
             <div className='flex justify-end pt-4 border-t border-gray-100 dark:border-gray-800'>
