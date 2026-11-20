@@ -237,7 +237,7 @@ function InterviewRoom() {
   const processPendingIceCandidates = async (pc: RTCPeerConnection) => {
     while (pendingIceCandidatesRef.current.length > 0) {
       const candidate = pendingIceCandidatesRef.current.shift()
-      if (candidate && candidate.candidate) {
+      if (candidate) {
         try {
           await pc.addIceCandidate(new RTCIceCandidate(candidate))
         } catch (err) {
@@ -257,12 +257,15 @@ function InterviewRoom() {
       remoteVideoRef.current.setAttribute('playsinline', 'true')
       remoteVideoRef.current.play().then(() => {
         setIsRemoteAudioMutedByBrowser(false)
+        setPeerConnected(true)
       }).catch((err) => {
         console.warn('Remote video unmuted autoplay prevented, playing muted:', err)
         if (remoteVideoRef.current) {
           remoteVideoRef.current.muted = true
           setIsRemoteAudioMutedByBrowser(true)
-          remoteVideoRef.current.play().catch((e2) => console.error('Muted autoplay also failed:', e2))
+          remoteVideoRef.current.play().then(() => {
+            setPeerConnected(true)
+          }).catch((e2) => console.error('Muted autoplay also failed:', e2))
         }
       })
     }
@@ -426,6 +429,11 @@ function InterviewRoom() {
         try {
           await peerRef.current.setRemoteDescription(new RTCSessionDescription(answer))
           await processPendingIceCandidates(peerRef.current)
+          peerRef.current.getTransceivers().forEach((transceiver) => {
+            if (transceiver.direction === 'recvonly' || transceiver.direction === 'inactive') {
+              transceiver.direction = 'sendrecv'
+            }
+          })
         } catch (e) {
           console.error('Set remote description error:', e)
         }
@@ -433,7 +441,7 @@ function InterviewRoom() {
     })
 
     socket.on('ice-candidate', async ({ candidate }: any) => {
-      if (!candidate || !candidate.candidate) return
+      if (!candidate) return
       if (peerRef.current && peerRef.current.remoteDescription && peerRef.current.remoteDescription.type) {
         try {
           await peerRef.current.addIceCandidate(new RTCIceCandidate(candidate))
@@ -528,36 +536,63 @@ function InterviewRoom() {
     peerRef.current = new RTCPeerConnection(iceServersRef.current)
     const pc = peerRef.current
 
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => {
+    // 1. Ensure local media stream is ready before creating offer
+    let localStream = localStreamRef.current
+    if (!localStream || localStream.getTracks().length === 0) {
+      try {
+        localStream = await getMediaStream(facingMode)
+        localStreamRef.current = localStream
+        if (localVideoRef.current && localVideoRef.current.srcObject !== localStream) {
+          localVideoRef.current.srcObject = localStream
+          localVideoRef.current.muted = true
+          localVideoRef.current.play().catch(() => {})
+        }
+      } catch (err) {
+        console.warn('Initiator could not acquire local media stream:', err)
+      }
+    }
+
+    if (localStream) {
+      localStream.getTracks().forEach((track) => {
         const senders = pc.getSenders()
         if (!senders.some((s) => s.track?.id === track.id)) {
-          pc.addTrack(track, localStreamRef.current!)
+          pc.addTrack(track, localStream!)
         }
       })
     }
 
+    // 2. Accumulate incoming tracks without overwriting
     pc.ontrack = (event) => {
-      console.log('WebRTC ontrack received (initiator):', event.track.kind)
-      let stream = (event.streams && event.streams[0]) ? event.streams[0] : null
-      if (!stream) {
-        if (!remoteStreamRef.current) {
-          remoteStreamRef.current = new MediaStream()
+      console.log('WebRTC ontrack received (initiator):', event.track.kind, event.track.id)
+      if (!remoteStreamRef.current) {
+        remoteStreamRef.current = new MediaStream()
+      }
+
+      if (event.streams && event.streams[0]) {
+        event.streams[0].getTracks().forEach((track) => {
+          if (!remoteStreamRef.current!.getTracks().some((t) => t.id === track.id)) {
+            remoteStreamRef.current!.addTrack(track)
+          }
+        })
+      }
+
+      if (event.track && !remoteStreamRef.current.getTracks().some((t) => t.id === event.track.id)) {
+        remoteStreamRef.current.addTrack(event.track)
+      }
+
+      event.track.onunmute = () => {
+        console.log('Initiator remote track unmuted:', event.track.kind)
+        if (remoteStreamRef.current) {
+          attachRemoteStream(remoteStreamRef.current)
         }
-        if (!remoteStreamRef.current.getTracks().some((t) => t.id === event.track.id)) {
-          remoteStreamRef.current.addTrack(event.track)
-        }
-        stream = remoteStreamRef.current
-      } else {
-        remoteStreamRef.current = stream
       }
 
       setPeerConnected(true)
-      attachRemoteStream(stream)
+      attachRemoteStream(remoteStreamRef.current)
     }
 
     pc.onicecandidate = (event) => {
-      if (event.candidate && event.candidate.candidate && socketRef.current) {
+      if (event.candidate && socketRef.current) {
         const candData = event.candidate.toJSON ? event.candidate.toJSON() : {
           candidate: event.candidate.candidate,
           sdpMid: event.candidate.sdpMid,
@@ -593,6 +628,13 @@ function InterviewRoom() {
     }
 
     try {
+      // 4. Ensure transceiver direction is sendrecv
+      pc.getTransceivers().forEach((transceiver) => {
+        if (transceiver.direction === 'recvonly' || transceiver.direction === 'inactive') {
+          transceiver.direction = 'sendrecv'
+        }
+      })
+
       const offer = await pc.createOffer({
         offerToReceiveAudio: true,
         offerToReceiveVideo: true,
@@ -604,7 +646,7 @@ function InterviewRoom() {
     }
   }
 
-  // WebRTC Peer Connection - Receiver
+  // WebRTC Peer Connection - Receiver (Callee)
   const handleWebRTCOffer = async (targetSocketId: string, offer: RTCSessionDescriptionInit) => {
     if (peerRef.current) {
       try { peerRef.current.close() } catch (e) {}
@@ -614,36 +656,63 @@ function InterviewRoom() {
     peerRef.current = new RTCPeerConnection(iceServersRef.current)
     const pc = peerRef.current
 
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => {
+    // 1. Callee Track Timing: MUST acquire local media and add tracks BEFORE createAnswer
+    let localStream = localStreamRef.current
+    if (!localStream || localStream.getTracks().length === 0) {
+      try {
+        localStream = await getMediaStream(facingMode)
+        localStreamRef.current = localStream
+        if (localVideoRef.current && localVideoRef.current.srcObject !== localStream) {
+          localVideoRef.current.srcObject = localStream
+          localVideoRef.current.muted = true
+          localVideoRef.current.play().catch(() => {})
+        }
+      } catch (err) {
+        console.warn('Callee could not acquire local media stream:', err)
+      }
+    }
+
+    if (localStream) {
+      localStream.getTracks().forEach((track) => {
         const senders = pc.getSenders()
         if (!senders.some((s) => s.track?.id === track.id)) {
-          pc.addTrack(track, localStreamRef.current!)
+          pc.addTrack(track, localStream!)
         }
       })
     }
 
+    // 2. Accumulate incoming tracks without overwriting
     pc.ontrack = (event) => {
-      console.log('WebRTC ontrack received (receiver):', event.track.kind)
-      let stream = (event.streams && event.streams[0]) ? event.streams[0] : null
-      if (!stream) {
-        if (!remoteStreamRef.current) {
-          remoteStreamRef.current = new MediaStream()
+      console.log('WebRTC ontrack received (receiver):', event.track.kind, event.track.id)
+      if (!remoteStreamRef.current) {
+        remoteStreamRef.current = new MediaStream()
+      }
+
+      if (event.streams && event.streams[0]) {
+        event.streams[0].getTracks().forEach((track) => {
+          if (!remoteStreamRef.current!.getTracks().some((t) => t.id === track.id)) {
+            remoteStreamRef.current!.addTrack(track)
+          }
+        })
+      }
+
+      if (event.track && !remoteStreamRef.current.getTracks().some((t) => t.id === event.track.id)) {
+        remoteStreamRef.current.addTrack(event.track)
+      }
+
+      event.track.onunmute = () => {
+        console.log('Receiver remote track unmuted:', event.track.kind)
+        if (remoteStreamRef.current) {
+          attachRemoteStream(remoteStreamRef.current)
         }
-        if (!remoteStreamRef.current.getTracks().some((t) => t.id === event.track.id)) {
-          remoteStreamRef.current.addTrack(event.track)
-        }
-        stream = remoteStreamRef.current
-      } else {
-        remoteStreamRef.current = stream
       }
 
       setPeerConnected(true)
-      attachRemoteStream(stream)
+      attachRemoteStream(remoteStreamRef.current)
     }
 
     pc.onicecandidate = (event) => {
-      if (event.candidate && event.candidate.candidate && socketRef.current) {
+      if (event.candidate && socketRef.current) {
         const candData = event.candidate.toJSON ? event.candidate.toJSON() : {
           candidate: event.candidate.candidate,
           sdpMid: event.candidate.sdpMid,
@@ -681,6 +750,29 @@ function InterviewRoom() {
     try {
       await pc.setRemoteDescription(new RTCSessionDescription(offer))
       await processPendingIceCandidates(pc)
+
+      // Ensure all local tracks are attached to senders before createAnswer
+      if (localStream) {
+        localStream.getTracks().forEach((track) => {
+          const senders = pc.getSenders()
+          const hasTrack = senders.some((s) => s.track?.id === track.id)
+          if (!hasTrack) {
+            const emptySender = senders.find((s) => !s.track)
+            if (emptySender) {
+              emptySender.replaceTrack(track).catch(() => {})
+            } else {
+              try { pc.addTrack(track, localStream!) } catch (e) {}
+            }
+          }
+        })
+      }
+
+      // 4. Video Transceiver Direction: Ensure transceivers are set to 'sendrecv'
+      pc.getTransceivers().forEach((transceiver) => {
+        if (transceiver.direction === 'recvonly' || transceiver.direction === 'inactive') {
+          transceiver.direction = 'sendrecv'
+        }
+      })
 
       const answer = await pc.createAnswer({
         offerToReceiveAudio: true,
@@ -768,6 +860,11 @@ function InterviewRoom() {
           if (sender) {
             await sender.replaceTrack(newVideoTrack)
           }
+          peerRef.current.getTransceivers().forEach((t) => {
+            if (t.direction === 'recvonly' || t.direction === 'inactive') {
+              t.direction = 'sendrecv'
+            }
+          })
         }
         const oldTrack = localStreamRef.current.getVideoTracks()[0]
         if (oldTrack) oldTrack.stop()
@@ -809,6 +906,11 @@ function InterviewRoom() {
           if (sender) {
             await sender.replaceTrack(screenTrack)
           }
+          peerRef.current.getTransceivers().forEach((t) => {
+            if (t.direction === 'recvonly' || t.direction === 'inactive') {
+              t.direction = 'sendrecv'
+            }
+          })
         }
 
         // Show screen share in local preview
@@ -846,6 +948,11 @@ function InterviewRoom() {
         if (sender) {
           await sender.replaceTrack(cameraTrack)
         }
+        peerRef.current.getTransceivers().forEach((t) => {
+          if (t.direction === 'recvonly' || t.direction === 'inactive') {
+            t.direction = 'sendrecv'
+          }
+        })
       }
     }
 
@@ -1222,7 +1329,7 @@ function InterviewRoom() {
               onClick={handleUnmuteRemoteAudio}
               onLoadedData={() => setPeerConnected(true)}
               onPlaying={() => setPeerConnected(true)}
-              className={`w-full h-full object-cover rounded-3xl ${!peerConnected ? 'hidden' : 'block cursor-pointer'}`}
+              className={`w-full h-full object-cover rounded-3xl ${!peerConnected ? 'opacity-0 pointer-events-none' : 'opacity-100 cursor-pointer'} transition-opacity duration-300`}
             />
 
             {/* Audio Muted Overlay Notification if browser prevented unmuted playback */}
@@ -1257,8 +1364,8 @@ function InterviewRoom() {
               <video
                 ref={localVideoRef}
                 autoPlay
-                muted
                 playsInline
+                muted
                 className='w-full h-full object-cover'
               />
               <span className='absolute bottom-1 left-1.5 sm:left-2 bg-black/70 text-[9px] sm:text-[10px] text-white px-1.5 py-0.5 rounded font-mono truncate max-w-[90%]'>
