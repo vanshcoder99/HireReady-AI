@@ -264,30 +264,16 @@ function Auth({ isModel = false, initialMode }: AuthProps) {
           </div>
         </div>
 
-        {/* Auth Mode Tabs (Sign In / Sign Up) */}
-        <div className="flex bg-gray-100/90 dark:bg-gray-800 rounded-xl p-1 mb-4 border border-gray-200/80 dark:border-gray-700">
-          <button
-            type="button"
-            onClick={() => handleSwitchMode('signin')}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              mode === 'signin'
-                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-xs'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-            }`}
-          >
-            Sign In
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSwitchMode('signup')}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              mode === 'signup'
-                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-xs'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-            }`}
-          >
-            Create Account
-          </button>
+        {/* Section Header: Create Account or Log In */}
+        <div className="text-center mb-3">
+          <h3 className="text-base font-extrabold text-gray-900 dark:text-white">
+            {mode === 'signup' ? 'Create an Account' : 'Log In'}
+          </h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            {mode === 'signup'
+              ? 'Enter your details below to get started.'
+              : 'Welcome back! Enter your details to log in.'}
+          </p>
         </div>
 
         {/* Error Alert Box */}
@@ -302,7 +288,7 @@ function Auth({ isModel = false, initialMode }: AuthProps) {
           </motion.div>
         )}
 
-        {/* 1. SIGN IN FORM */}
+        {/* 1. LOGIN FORM */}
         {mode === 'signin' && (
           <form onSubmit={handleLogin} className="space-y-3.5">
             <div>
@@ -358,7 +344,7 @@ function Auth({ isModel = false, initialMode }: AuthProps) {
               {loading ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
-                'Sign In'
+                'Log In'
               )}
             </button>
           </form>
@@ -533,7 +519,7 @@ function Auth({ isModel = false, initialMode }: AuthProps) {
                 onClick={() => handleSwitchMode('signin')}
                 className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
               >
-                Sign in here
+                Log in here
               </button>
             </p>
           )}
