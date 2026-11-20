@@ -20,18 +20,33 @@ import { auth, provider } from '../utils/firebase';
 import { ServerUrl } from '../App';
 import { useDispatch } from 'react-redux';
 import { setUserData } from '../redux/userSlice';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 interface AuthProps {
   isModel?: boolean;
+  initialMode?: 'signin' | 'signup';
 }
 
-function Auth({ isModel = false }: AuthProps) {
+function Auth({ isModel = false, initialMode }: AuthProps) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const queryMode = searchParams.get('mode') as 'signin' | 'signup' | null;
+  // Default to 'signup' (Create Account) as requested, unless explicitly set to 'signin'
+  const defaultAuthMode = initialMode || (queryMode === 'signin' ? 'signin' : 'signup');
+
+  const [mode, setMode] = useState<'signin' | 'signup'>(defaultAuthMode);
   const [selectedRole, setSelectedRole] = useState<'learner' | 'interviewer'>('learner');
+
+  // Sync mode if initialMode prop or query param changes
+  React.useEffect(() => {
+    if (initialMode) {
+      setMode(initialMode);
+    } else if (queryMode === 'signin' || queryMode === 'signup') {
+      setMode(queryMode);
+    }
+  }, [initialMode, queryMode]);
 
   // Sign In State
   const [loginIdentifier, setLoginIdentifier] = useState('');

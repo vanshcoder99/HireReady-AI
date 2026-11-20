@@ -6,9 +6,10 @@ import { RootState } from '../redux/store';
 
 interface AuthModelProps {
   onClose: () => void;
+  initialMode?: 'signin' | 'signup';
 }
 
-function AuthModel({ onClose }: AuthModelProps) {
+function AuthModel({ onClose, initialMode = 'signup' }: AuthModelProps) {
   const { userData } = useSelector((state: RootState) => state.user);
 
   useEffect(() => {
@@ -27,7 +28,7 @@ function AuthModel({ onClose }: AuthModelProps) {
         >
           <FaTimes size={15} />
         </button>
-        <Auth isModel={true} />
+        <Auth isModel={true} initialMode={initialMode} />
       </div>
     </div>
   );

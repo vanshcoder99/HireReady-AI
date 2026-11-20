@@ -10,12 +10,14 @@ function LandingNavbar() {
   const { userData } = useSelector((state: any) => state.user)
   const navigate = useNavigate()
   const [showAuth, setShowAuth] = useState(false)
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signup')
   const [mobileMenu, setMobileMenu] = useState(false)
 
   const handleCTA = () => {
     if (userData) {
       navigate('/dashboard')
     } else {
+      setAuthMode('signup')
       setShowAuth(true)
     }
   }
@@ -83,7 +85,10 @@ function LandingNavbar() {
             ) : (
               <>
                 <button
-                  onClick={() => setShowAuth(true)}
+                  onClick={() => {
+                    setAuthMode('signin')
+                    setShowAuth(true)
+                  }}
                   className='text-sm text-gray-600 hover:text-gray-900 transition cursor-pointer'
                 >
                   Log in
@@ -129,7 +134,7 @@ function LandingNavbar() {
         )}
       </nav>
 
-      {showAuth && <AuthModel onClose={() => setShowAuth(false)} />}
+      {showAuth && <AuthModel onClose={() => setShowAuth(false)} initialMode={authMode} />}
     </>
   )
 }

@@ -165,7 +165,7 @@ function HeroSection() {
         </motion.div>
       </div>
 
-      {showAuthModal && <AuthModel onClose={() => setShowAuthModal(false)} />}
+      {showAuthModal && <AuthModel onClose={() => setShowAuthModal(false)} initialMode="signup" />}
     </section>
   );
 }

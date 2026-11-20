@@ -15,6 +15,7 @@ function Navbar() {
   const [showCreditPopup, setShowCreditPopup] = useState(false);
   const [showUserPopup, setShowUserPopup] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signup');
   const [mobileMenu, setMobileMenu] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -302,7 +303,10 @@ function Navbar() {
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => setShowAuth(true)}
+                  onClick={() => {
+                    setAuthMode('signin');
+                    setShowAuth(true);
+                  }}
                   className='hidden sm:block text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition cursor-pointer px-3 py-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800'
                 >
                   Log in
@@ -310,7 +314,10 @@ function Navbar() {
                 <motion.button
                   whileHover={{ scale: 1.05, boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)' }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => setShowAuth(true)}
+                  onClick={() => {
+                    setAuthMode('signup');
+                    setShowAuth(true);
+                  }}
                   className='bg-emerald-600 hover:bg-emerald-700 text-white px-4 md:px-5 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-semibold cursor-pointer transition shadow-md shadow-emerald-600/20'
                 >
                   Get Started
@@ -395,6 +402,7 @@ function Navbar() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => {
+                  setAuthMode('signup');
                   setShowAuth(true);
                   setMobileMenu(false);
                 }}
@@ -407,7 +415,7 @@ function Navbar() {
         )}
       </AnimatePresence>
 
-      {showAuth && <AuthModel onClose={() => setShowAuth(false)} />}
+      {showAuth && <AuthModel onClose={() => setShowAuth(false)} initialMode={authMode} />}
     </>
   );
 }

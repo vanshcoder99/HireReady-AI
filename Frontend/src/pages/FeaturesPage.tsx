@@ -273,7 +273,7 @@ function FeaturesPage() {
       </main>
 
       <Footer />
-      {showAuth && <AuthModel onClose={() => setShowAuth(false)} />}
+      {showAuth && <AuthModel onClose={() => setShowAuth(false)} initialMode="signup" />}
     </div>
   )
 }

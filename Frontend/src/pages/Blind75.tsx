@@ -117,7 +117,7 @@ function Blind75() {
 
     if (!isLoggedIn) {
       showToast('⚠️ Please log in to chat with HireReady AI (50 credits required).');
-      navigate('/auth');
+      navigate('/auth?mode=signin');
       return;
     }
 
@@ -162,7 +162,7 @@ function Blind75() {
         setAiGuidance(`⚠️ **Insufficient Credits**: ${errorMsg}\n\nPlease visit the **Pricing** page to recharge credits.`);
       } else if (err.response?.status === 401) {
         showToast('Please log in to use AI Guidance (50 credits required).');
-        navigate('/auth');
+        navigate('/auth?mode=signin');
       } else {
         // Fallback guidance
         setAiGuidance(
@@ -823,7 +823,7 @@ function Blind75() {
                         Log in to ask questions and receive dynamic AI guidance (50 credits per query).
                       </span>
                       <button
-                        onClick={() => navigate('/auth')}
+                        onClick={() => navigate('/auth?mode=signin')}
                         className="ml-2 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold transition flex-shrink-0 cursor-pointer"
                       >
                         Log In
